@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="تشفير وفك تشفير ملفاتك مباشرة في المتصفح — بدون رفع بياناتك إلى أي خادم. آمن، سريع، وعسكري المستوى." />
+  <title>CipherVault Web — تشفير عسكري في المتصفح</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a14'/><path d='M50 20 L80 40 L80 70 L50 90 L20 70 L20 40 Z' fill='none' stroke='%234facfe' stroke-width='4'/><circle cx='50' cy='50' r='15' fill='none' stroke='%2300cdac' stroke-width='3'/></svg>">
+</head>
+<body>
+  <div class="background-pattern"></div>
+  
+  <div class="container">
+    <header>
+      <h1>🔐 CipherVault</h1>
+      <div class="security-note">
+        🔒 جميع عمليات التشفير تتم في متصفحك — ملفاتك لا تُرسل إلى أي مكان.
+      </div>
+      <p>واجهة آمنة لتشفير وفك تشفير ملفاتك باستخدام معايير عسكرية (AES-256-GCM)</p>
+    </header>
+
+    <main>
+      <div class="card">
+        <div class="file-input-wrapper">
+          <label for="fileInput">اختر ملفًا للتشفير أو فك التشفير</label>
+          <input type="file" id="fileInput" accept="*" />
+        </div>
+
+        <div class="password-section">
+          <label for="password">كلمة المرور (يجب أن تكون قوية — 12 حرفًا على الأقل)</label>
+          <input type="password" id="password" placeholder="أدخل كلمة مرور سرية قوية..." autocomplete="off" />
+        </div>
+
+        <div class="action-buttons">
+          <button id="encryptBtn" class="btn encrypt">تشفير الملف</button>
+          <button id="decryptBtn" class="btn decrypt">فك التشفير<br>(لملفات .encrypted)</button>
+        </div>
+
+        <div id="status" class="status"></div>
+      </div>
+    </main>
+
+    <footer>
+      <p>© <span id="year">2025</span> — مشروع مفتوح المصدر تحت ترخيص MIT. لا تُخزّن بياناتك أو تُرسلها.</p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
