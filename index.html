@@ -1,49 +1,88 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" id="htmlRoot">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="description" content="تشفير وفك تشفير ملفاتك مباشرة في المتصفح — بدون رفع بياناتك إلى أي خادم. آمن، سريع، وعسكري المستوى." />
-  <title>CipherVault Web — تشفير عسكري في المتصفح</title>
+  <meta name="description" content="Military-grade file encryption and decryption in your browser — zero data leaves your device." />
+  <title>CipherVault Web</title>
   <link rel="stylesheet" href="style.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;600;700&family=Roboto:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="icon" href="image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a14'/><path d='M50 20 L80 40 L80 70 L50 90 L20 70 L20 40 Z' fill='none' stroke='%234facfe' stroke-width='4'/><circle cx='50' cy='50' r='15' fill='none' stroke='%2300cdac' stroke-width='3'/></svg>">
 </head>
 <body>
-  <div class="background-pattern"></div>
-  
+  <!-- خلفية 3D تفاعلية -->
+  <div class="scene">
+    <div class="cube">
+      <div class="cube__face cube__face--front"></div>
+      <div class="cube__face cube__face--back"></div>
+      <div class="cube__face cube__face--right"></div>
+      <div class="cube__face cube__face--left"></div>
+      <div class="cube__face cube__face--top"></div>
+      <div class="cube__face cube__face--bottom"></div>
+    </div>
+  </div>
+
+  <!-- شريط اللغة -->
+  <div class="lang-switcher">
+    <button id="lang-ar" class="lang-btn active">العربية</button>
+    <button id="lang-en" class="lang-btn">English</button>
+  </div>
+
   <div class="container">
     <header>
       <h1>🔐 CipherVault</h1>
-      <div class="security-note">
+      <div class="security-note" data-i18n="security-note">
         🔒 جميع عمليات التشفير تتم في متصفحك — ملفاتك لا تُرسل إلى أي مكان.
       </div>
-      <p>واجهة آمنة لتشفير وفك تشفير ملفاتك باستخدام معايير عسكرية (AES-256-GCM)</p>
+      <p data-i18n="header-desc">
+        واجهة آمنة لتشفير وفك تشفير ملفاتك باستخدام معايير عسكرية (AES-256-GCM)
+      </p>
     </header>
 
     <main>
-      <div class="card">
-        <div class="file-input-wrapper">
-          <label for="fileInput">اختر ملفًا للتشفير أو فك التشفير</label>
-          <input type="file" id="fileInput" accept="*" />
+      <!-- نافذة التشفير -->
+      <section id="encrypt-section" class="section active">
+        <h2 data-i18n="encrypt-title">🔐 تشفير ملف</h2>
+        <div class="card">
+          <div class="file-input-wrapper">
+            <label for="fileInputEncrypt" data-i18n="choose-file">اختر ملفًا للتشفير</label>
+            <input type="file" id="fileInputEncrypt" accept="*" />
+          </div>
+          <div class="password-section">
+            <label for="passwordEncrypt" data-i18n="password-label">كلمة المرور (12 حرفًا على الأقل)</label>
+            <input type="password" id="passwordEncrypt" placeholder="أدخل كلمة مرور سرية..." autocomplete="off" />
+          </div>
+          <button id="encryptBtn" class="btn encrypt" data-i18n="encrypt-btn">تشفير الملف</button>
+          <div id="encrypt-status" class="status"></div>
         </div>
+      </section>
 
-        <div class="password-section">
-          <label for="password">كلمة المرور (يجب أن تكون قوية — 12 حرفًا على الأقل)</label>
-          <input type="password" id="password" placeholder="أدخل كلمة مرور سرية قوية..." autocomplete="off" />
+      <!-- نافذة فك التشفير -->
+      <section id="decrypt-section" class="section">
+        <h2 data-i18n="decrypt-title">🔓 فك تشفير ملف</h2>
+        <div class="card">
+          <div class="file-input-wrapper">
+            <label for="fileInputDecrypt" data-i18n="choose-encrypted-file">اختر ملفًا مشفرًا (.encrypted)</label>
+            <input type="file" id="fileInputDecrypt" accept="*.encrypted" />
+          </div>
+          <div class="password-section">
+            <label for="passwordDecrypt" data-i18n="password-label">كلمة المرور</label>
+            <input type="password" id="passwordDecrypt" placeholder="أدخل كلمة المرور..." autocomplete="off" />
+          </div>
+          <button id="decryptBtn" class="btn decrypt" data-i18n="decrypt-btn">فك التشفير</button>
+          <div id="decrypt-status" class="status"></div>
         </div>
+      </section>
 
-        <div class="action-buttons">
-          <button id="encryptBtn" class="btn encrypt">تشفير الملف</button>
-          <button id="decryptBtn" class="btn decrypt">فك التشفير<br>(لملفات .encrypted)</button>
-        </div>
-
-        <div id="status" class="status"></div>
+      <!-- أزرار التنقل بين الأقسام -->
+      <div class="section-switcher">
+        <button id="switch-to-encrypt" class="switch-btn active" data-i18n="switch-encrypt">التشفير</button>
+        <button id="switch-to-decrypt" class="switch-btn" data-i18n="switch-decrypt">فك التشفير</button>
       </div>
     </main>
 
     <footer>
-      <p>© <span id="year">2025</span> — مشروع مفتوح المصدر تحت ترخيص MIT. لا تُخزّن بياناتك أو تُرسلها.</p>
+      <p>&copy; <span id="year">2025</span> — <span data-i18n="footer-text">مشروع مفتوح المصدر تحت ترخيص MIT</span></p>
     </footer>
   </div>
 
