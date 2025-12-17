@@ -1,6 +1,8 @@
-/* =========================
-   Global Reset & Variables
-   ========================= */
+/* ==========================================================
+   Design System – Professional UI / 3D Decorative Background
+   ========================================================== */
+
+/* ---------- Reset ---------- */
 *,
 *::before,
 *::after {
@@ -9,28 +11,31 @@
   box-sizing: border-box;
 }
 
+/* ---------- Variables ---------- */
 :root {
-  --bg-main: #0a0a14;
-  --card-bg: rgba(15, 15, 35, 0.72);
-  --border-color: rgba(120, 120, 255, 0.25);
+  /* Colors */
+  --bg-main: #080810;
+  --bg-elevated: rgba(16, 18, 40, 0.75);
+  --border-soft: rgba(140, 160, 255, 0.22);
 
-  --accent-encrypt: linear-gradient(135deg, #4facfe, #00cdac);
-  --accent-decrypt: linear-gradient(135deg, #ff6b6b, #ff8e53);
+  --accent-primary: linear-gradient(135deg, #4facfe, #00cdac);
+  --accent-danger: linear-gradient(135deg, #ff6b6b, #ff8e53);
 
-  --text-primary: #e6e6ff;
-  --text-secondary: #a8a8d8;
+  --text-main: #e8e9ff;
+  --text-muted: #a4a7d6;
 
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
+  /* Radius */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
 
-  --transition-fast: 0.2s ease;
-  --transition-main: 0.35s ease;
+  /* Motion */
+  --ease-fast: 0.2s ease;
+  --ease-main: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* =========================
-   Base Layout
-   ========================= */
+/* ---------- Base ---------- */
 html,
 body {
   width: 100%;
@@ -39,150 +44,149 @@ body {
 
 body {
   font-family: "Tajawal", system-ui, sans-serif;
-  background: radial-gradient(circle at top, #0e1025, var(--bg-main));
-  color: var(--text-primary);
+  background:
+    radial-gradient(circle at top, rgba(80, 100, 255, 0.08), transparent 55%),
+    var(--bg-main);
+  color: var(--text-main);
   overflow-x: hidden;
-  position: relative;
 }
 
-/* =========================
-   3D Background Scene
-   ========================= */
+/* ==========================================================
+   3D Background (Decorative – Optimized)
+   ========================================================== */
 .scene {
   position: fixed;
   inset: 0;
-  perspective: 1200px;
-  z-index: -1;
+  perspective: 1400px;
   pointer-events: none;
+  z-index: -1;
 }
 
 .cube {
   position: absolute;
-  width: 220px;
-  height: 220px;
-  left: 50%;
+  width: 240px;
+  height: 240px;
   top: 50%;
+  left: 50%;
   transform-style: preserve-3d;
-  transform: translate(-50%, -50%) rotateX(-18deg) rotateY(0deg);
-  animation: cubeRotate 22s linear infinite;
+  transform: translate(-50%, -50%) rotateX(-22deg);
+  animation: cube-spin 26s linear infinite;
   will-change: transform;
 }
 
 .cube__face {
   position: absolute;
-  width: 220px;
-  height: 220px;
-  background: rgba(12, 12, 40, 0.35);
-  border: 1px solid rgba(120, 150, 255, 0.25);
-  backdrop-filter: blur(4px);
+  inset: 0;
+  background: rgba(18, 20, 55, 0.35);
+  border: 1px solid rgba(140, 170, 255, 0.25);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 42px;
-  color: rgba(120, 160, 255, 0.35);
+  font-size: 44px;
+  color: rgba(140, 170, 255, 0.35);
 }
 
-.cube__face--front  { transform: rotateY(0deg) translateZ(110px); }
-.cube__face--back   { transform: rotateY(180deg) translateZ(110px); }
-.cube__face--right  { transform: rotateY(90deg) translateZ(110px); }
-.cube__face--left   { transform: rotateY(-90deg) translateZ(110px); }
-.cube__face--top    { transform: rotateX(90deg) translateZ(110px); }
-.cube__face--bottom { transform: rotateX(-90deg) translateZ(110px); }
+.cube__face--front  { transform: rotateY(0deg)   translateZ(120px); }
+.cube__face--back   { transform: rotateY(180deg) translateZ(120px); }
+.cube__face--right  { transform: rotateY(90deg)  translateZ(120px); }
+.cube__face--left   { transform: rotateY(-90deg) translateZ(120px); }
+.cube__face--top    { transform: rotateX(90deg)  translateZ(120px); }
+.cube__face--bottom { transform: rotateX(-90deg) translateZ(120px); }
 
-@keyframes cubeRotate {
+@keyframes cube-spin {
   from {
-    transform: translate(-50%, -50%) rotateX(-18deg) rotateY(0deg);
+    transform: translate(-50%, -50%) rotateX(-22deg) rotateY(0deg);
   }
   to {
-    transform: translate(-50%, -50%) rotateX(-18deg) rotateY(360deg);
+    transform: translate(-50%, -50%) rotateX(-22deg) rotateY(360deg);
   }
 }
 
-/* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .cube {
     animation: none;
   }
 }
 
-/* =========================
+/* ==========================================================
    Language Switcher
-   ========================= */
+   ========================================================== */
 .lang-switcher {
   position: fixed;
   top: 20px;
   left: 20px;
-  z-index: 100;
   display: flex;
-  gap: 0.5rem;
+  gap: 0.6rem;
+  z-index: 100;
 }
 
 .lang-btn {
-  padding: 0.45rem 0.9rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(120, 120, 255, 0.35);
+  padding: 0.45rem 0.95rem;
+  border-radius: var(--r-xs);
   background: rgba(0, 0, 0, 0.35);
-  color: var(--text-secondary);
+  border: 1px solid rgba(140, 160, 255, 0.35);
+  color: var(--text-muted);
   cursor: pointer;
-  transition: var(--transition-fast);
+  transition: var(--ease-fast);
 }
 
 .lang-btn:hover,
 .lang-btn.active {
-  background: rgba(100, 140, 255, 0.25);
+  background: rgba(120, 150, 255, 0.25);
   color: #ffffff;
 }
 
-/* =========================
-   Main Container
-   ========================= */
+/* ==========================================================
+   Layout
+   ========================================================== */
 .container {
-  max-width: 860px;
-  margin: 4.5rem auto 2rem;
-  padding: 0 1.5rem;
+  max-width: 880px;
+  margin: 5rem auto 2.5rem;
+  padding: 0 1.6rem;
   position: relative;
-  z-index: 5;
+  z-index: 10;
 }
 
 header {
   text-align: center;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2.8rem;
 }
 
 header h1 {
-  font-size: clamp(2.2rem, 4vw, 3rem);
-  background: linear-gradient(90deg, #4facfe, #00cdac);
-  background-clip: text;
+  font-size: clamp(2.3rem, 4vw, 3.1rem);
+  font-weight: 700;
+  background: var(--accent-primary);
   -webkit-background-clip: text;
+  background-clip: text;
   color: transparent;
 }
 
 .security-note {
-  display: inline-block;
-  margin-top: 1rem;
-  padding: 0.7rem 1rem;
+  margin-top: 1.1rem;
+  padding: 0.7rem 1.1rem;
+  border-radius: var(--r-sm);
+  background: rgba(0, 200, 140, 0.14);
+  border: 1px solid rgba(0, 255, 170, 0.32);
   font-size: 0.95rem;
-  border-radius: var(--radius-md);
-  background: rgba(0, 200, 120, 0.15);
-  border: 1px solid rgba(0, 255, 160, 0.35);
 }
 
-/* =========================
+/* ==========================================================
    Sections & Cards
-   ========================= */
+   ========================================================== */
 .section {
   display: none;
 }
 
 .section.active {
   display: block;
-  animation: fadeUp 0.45s ease;
+  animation: section-enter 0.5s var(--ease-main);
 }
 
-@keyframes fadeUp {
+@keyframes section-enter {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(18px);
   }
   to {
     opacity: 1;
@@ -191,112 +195,112 @@ header h1 {
 }
 
 .card {
-  background: var(--card-bg);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-  border: 1px solid var(--border-color);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55);
-  margin-bottom: 1.6rem;
+  background: var(--bg-elevated);
+  border-radius: var(--r-lg);
+  padding: 2.2rem;
+  border: 1px solid var(--border-soft);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+  margin-bottom: 1.8rem;
 }
 
-/* =========================
-   Navigation Buttons
-   ========================= */
+/* ==========================================================
+   Navigation
+   ========================================================== */
 .section-switcher {
   display: flex;
   justify-content: center;
-  gap: 1rem;
-  margin-top: 1.5rem;
+  gap: 1.1rem;
+  margin-top: 1.6rem;
 }
 
 .switch-btn {
-  padding: 0.65rem 1.6rem;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(120, 120, 255, 0.35);
-  background: rgba(50, 50, 90, 0.55);
-  color: var(--text-secondary);
+  padding: 0.7rem 1.7rem;
+  border-radius: var(--r-md);
+  background: rgba(50, 55, 110, 0.55);
+  border: 1px solid rgba(140, 160, 255, 0.35);
+  color: var(--text-muted);
   font-weight: 600;
   cursor: pointer;
-  transition: var(--transition-main);
+  transition: var(--ease-main);
 }
 
 .switch-btn:hover,
 .switch-btn.active {
-  background: var(--accent-encrypt);
+  background: var(--accent-primary);
   color: #ffffff;
 }
 
-/* =========================
+/* ==========================================================
    Action Buttons
-   ========================= */
+   ========================================================== */
 .btn {
   display: block;
-  min-width: 170px;
-  margin: 1.6rem auto 1rem;
-  padding: 0.85rem 1.9rem;
-  border-radius: var(--radius-md);
+  min-width: 180px;
+  margin: 1.8rem auto 1.2rem;
+  padding: 0.9rem 2rem;
+  border-radius: var(--r-md);
   border: none;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: var(--transition-main);
+  transition: var(--ease-main);
 }
 
 .btn.encrypt {
-  background: var(--accent-encrypt);
+  background: var(--accent-primary);
   color: #ffffff;
 }
 
 .btn.decrypt {
-  background: var(--accent-decrypt);
+  background: var(--accent-danger);
   color: #ffffff;
 }
 
 .btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
 }
 
-/* =========================
+/* ==========================================================
    Status Messages
-   ========================= */
+   ========================================================== */
 .status {
-  margin-top: 1rem;
+  margin-top: 1.1rem;
   padding: 1rem;
-  border-radius: var(--radius-md);
-  text-align: center;
+  border-radius: var(--r-md);
   font-family: ui-monospace, monospace;
+  text-align: center;
   display: none;
-}
-
-.status.error {
-  display: block;
-  background: rgba(255, 60, 60, 0.2);
-  border: 1px solid #ff4c4c;
-  color: #ffb0b0;
 }
 
 .status.success {
   display: block;
-  background: rgba(40, 200, 120, 0.2);
+  background: rgba(40, 200, 120, 0.18);
   border: 1px solid #2ecc71;
-  color: #b8ffd6;
+  color: #baffd6;
 }
 
-/* =========================
+.status.error {
+  display: block;
+  background: rgba(255, 70, 70, 0.2);
+  border: 1px solid #ff4c4c;
+  color: #ffb0b0;
+}
+
+/* ==========================================================
    Footer
-   ========================= */
+   ========================================================== */
 footer {
   text-align: center;
-  margin-top: 3rem;
+  margin-top: 3.2rem;
   font-size: 0.9rem;
-  color: #8a8ac2;
+  color: #8c8fc7;
 }
 
-/* =========================
-   English Language Support
-   ========================= */
+/* ==========================================================
+   English Support
+   ========================================================== */
 html[lang="en"] {
   font-family: "Roboto", system-ui, sans-serif;
   direction: ltr;
@@ -307,19 +311,19 @@ html[lang="en"] .lang-switcher {
   right: 20px;
 }
 
-/* =========================
-   Mobile Optimization
-   ========================= */
+/* ==========================================================
+   Mobile
+   ========================================================== */
 @media (max-width: 600px) {
   .scene {
     display: none;
   }
 
   .container {
-    margin-top: 2.5rem;
+    margin-top: 2.8rem;
   }
 
   header h1 {
-    font-size: 2.1rem;
+    font-size: 2.15rem;
   }
 }
