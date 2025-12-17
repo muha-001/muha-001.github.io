@@ -3,229 +3,376 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CipherVault Pro - تشفير آمن للملفات</title>
+    <title>CipherVault 3D Pro - World-Class File Encryption</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- 3D Cube Background -->
-    <div class="cube-container">
-        <div class="cube">
-            <div class="cube-face"></div>
-            <div class="cube-face"></div>
-            <div class="cube-face"></div>
-            <div class="cube-face"></div>
-            <div class="cube-face"></div>
-            <div class="cube-face"></div>
+    <!-- Three.js Canvas -->
+    <div id="threejs-container"></div>
+    
+    <!-- 3D Floating Elements -->
+    <div class="floating-elements">
+        <div class="floating-icon" style="top: 10%; left: 5%; animation-delay: 0s;">
+            <i class="fas fa-shield-alt"></i>
+        </div>
+        <div class="floating-icon" style="top: 20%; right: 10%; animation-delay: 1s;">
+            <i class="fas fa-lock"></i>
+        </div>
+        <div class="floating-icon" style="bottom: 30%; left: 15%; animation-delay: 2s;">
+            <i class="fas fa-key"></i>
+        </div>
+        <div class="floating-icon" style="bottom: 15%; right: 5%; animation-delay: 3s;">
+            <i class="fas fa-file-shield"></i>
         </div>
     </div>
 
-    <div class="container">
-        <!-- Language Switcher -->
-        <div class="lang-switcher">
-            <button id="lang-ar" class="lang-btn active">العربية</button>
-            <button id="lang-en" class="lang-btn">English</button>
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Language Selector (3D Style) -->
+        <div class="language-selector-3d">
+            <div class="lang-option" data-lang="ar" data-tooltip="العربية">
+                <i class="fas fa-globe-africa"></i>
+                <span>AR</span>
+            </div>
+            <div class="lang-option" data-lang="en" data-tooltip="English">
+                <i class="fas fa-globe-americas"></i>
+                <span>EN</span>
+            </div>
         </div>
 
-        <!-- Header -->
-        <header class="header">
-            <div class="logo">
-                <div class="logo-icon">
-                    <i class="fas fa-lock"></i>
-                </div>
-                <h1 data-i18n="app-title">CipherVault Pro</h1>
-            </div>
-            
-            <p class="subtitle" data-i18n="header-desc">
-                تشفير آمن عسكري المستوى للملفات باستخدام AES-256-GCM و HMAC-SHA256
-            </p>
-            
-            <div class="security-badge">
-                <i class="fas fa-shield-alt"></i>
-                <span data-i18n="security-note">
-                    كل العمليات تتم في متصفحك - ملفاتك لا تترك جهازك أبداً
-                </span>
-            </div>
-        </header>
-
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Encrypt Section -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-icon">
+        <!-- 3D Logo -->
+        <div class="logo-3d">
+            <div class="logo-icon-3d">
+                <div class="cube-logo">
+                    <div class="face front">
                         <i class="fas fa-lock"></i>
                     </div>
-                    <h2 class="card-title" data-i18n="encrypt-title">🔐 تشفير الملف</h2>
-                </div>
-
-                <!-- File Upload -->
-                <div class="file-upload" id="encryptUpload">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <p data-i18n="choose-file">اختر ملفًا للتشفير</p>
-                    <p data-i18n="file-size-limit">(الحد الأقصى: 2 جيجابايت)</p>
-                    <div class="file-info" id="encryptFileInfo" style="display: none;">
-                        <i class="fas fa-file"></i>
-                        <span id="encryptFileName"></span>
-                        <span id="encryptFileSize"></span>
+                    <div class="face back">
+                        <i class="fas fa-key"></i>
                     </div>
-                    <input type="file" id="fileInputEncrypt" style="display: none;">
-                </div>
-
-                <!-- Password Input -->
-                <div class="password-group">
-                    <div class="password-label">
-                        <label data-i18n="password-label">كلمة المرور (12 حرفًا على الأقل)</label>
-                        <span class="password-strength" id="passwordStrengthEncrypt">ضعيفة</span>
+                    <div class="face right">
+                        <i class="fas fa-shield-alt"></i>
                     </div>
-                    <div class="password-input">
-                        <input type="password" id="passwordEncrypt" 
-                               placeholder="أدخل كلمة مرور قوية..." 
-                               minlength="12">
-                        <button type="button" class="toggle-password" onclick="togglePassword('passwordEncrypt')">
-                            <i class="fas fa-eye"></i>
+                    <div class="face left">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <div class="face top">
+                        <i class="fas fa-cloud"></i>
+                    </div>
+                    <div class="face bottom">
+                        <i class="fas fa-code"></i>
+                    </div>
+                </div>
+            </div>
+            <h1 class="logo-text" data-i18n="app-title">CIPHERVAULT 3D PRO</h1>
+            <p class="tagline" data-i18n="tagline">Military-Grade Encryption · Zero Trust Architecture</p>
+        </div>
+
+        <!-- 3D Card Container -->
+        <div class="card-container-3d">
+            <!-- Encrypt Card -->
+            <div class="card-3d encrypt-card" data-tilt data-tilt-max="20" data-tilt-speed="400" data-tilt-perspective="1000">
+                <div class="card-inner">
+                    <div class="card-front">
+                        <div class="card-header">
+                            <div class="card-icon-3d">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <h2 data-i18n="encrypt-title">ENCRYPT FILE</h2>
+                            <div class="tech-badge">AES-256-GCM</div>
+                        </div>
+                        
+                        <div class="file-upload-3d" id="encryptUpload">
+                            <div class="upload-area">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p data-i18n="choose-file">Drag & Drop or Click to Select File</p>
+                                <p class="file-types" data-i18n="supported-files">Supports ALL file types up to 5GB</p>
+                            </div>
+                            <input type="file" id="fileInputEncrypt" style="display: none;">
+                        </div>
+
+                        <div class="file-info-3d" id="encryptFileInfo">
+                            <div class="file-details">
+                                <i class="fas fa-file"></i>
+                                <div class="file-text">
+                                    <span id="encryptFileName" class="filename">No file selected</span>
+                                    <span id="encryptFileSize" class="filesize">0 MB</span>
+                                </div>
+                            </div>
+                            <div class="file-actions">
+                                <button class="btn-icon" onclick="clearFile('encrypt')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="password-input-3d">
+                            <div class="input-header">
+                                <label data-i18n="password-label">PASSWORD (12+ CHARACTERS)</label>
+                                <span class="strength-meter" id="passwordStrengthEncrypt">
+                                    <span class="strength-bar weak"></span>
+                                    <span class="strength-text" data-i18n="password-weak">WEAK</span>
+                                </span>
+                            </div>
+                            <div class="input-wrapper">
+                                <input type="password" id="passwordEncrypt" 
+                                       placeholder="Enter strong password...">
+                                <button class="btn-toggle-password" onclick="togglePassword('passwordEncrypt')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <div class="password-hints">
+                                    <span class="hint" data-i18n="hint-uppercase">Uppercase</span>
+                                    <span class="hint" data-i18n="hint-lowercase">Lowercase</span>
+                                    <span class="hint" data-i18n="hint-numbers">Numbers</span>
+                                    <span class="hint" data-i18n="hint-symbols">Symbols</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="encryption-options">
+                            <div class="option">
+                                <input type="checkbox" id="compressOption" checked>
+                                <label for="compressOption" data-i18n="compress-option">Compress before encryption</label>
+                            </div>
+                            <div class="option">
+                                <input type="checkbox" id="splitOption">
+                                <label for="splitOption" data-i18n="split-option">Split large files</label>
+                            </div>
+                        </div>
+
+                        <button class="btn-3d btn-encrypt" id="encryptBtn">
+                            <div class="btn-content">
+                                <i class="fas fa-lock"></i>
+                                <span data-i18n="encrypt-btn">ENCRYPT NOW</span>
+                            </div>
+                            <div class="btn-glow"></div>
                         </button>
                     </div>
-                    <div class="progress-text">
-                        <span data-i18n="password-tip">استخدم أحرف كبيرة وصغيرة وأرقام ورموز</span>
+                    
+                    <div class="card-back">
+                        <div class="progress-3d" id="encryptProgress">
+                            <div class="progress-circle">
+                                <svg width="120" height="120" viewBox="0 0 120 120">
+                                    <circle class="progress-bg" cx="60" cy="60" r="54"></circle>
+                                    <circle class="progress-bar" cx="60" cy="60" r="54" 
+                                            style="stroke-dashoffset: 339.292;"></circle>
+                                </svg>
+                                <div class="progress-text">
+                                    <span id="encryptProgressPercent">0</span>
+                                    <span>%</span>
+                                </div>
+                            </div>
+                            <p id="encryptProgressStatus" data-i18n="processing">PROCESSING...</p>
+                            <div class="encryption-details">
+                                <div class="detail">
+                                    <i class="fas fa-microchip"></i>
+                                    <span data-i18n="algo">AES-256-GCM</span>
+                                </div>
+                                <div class="detail">
+                                    <i class="fas fa-redo"></i>
+                                    <span>310K PBKDF2</span>
+                                </div>
+                                <div class="detail">
+                                    <i class="fas fa-fingerprint"></i>
+                                    <span data-i18n="hmac">HMAC-SHA256</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Progress Bar -->
-                <div class="progress-container" id="encryptProgress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="encryptProgressFill"></div>
-                    </div>
-                    <div class="progress-text">
-                        <span data-i18n="processing">جاري المعالجة...</span>
-                        <span id="encryptProgressText">0%</span>
-                    </div>
-                </div>
-
-                <!-- Encrypt Button -->
-                <button class="btn" id="encryptBtn">
-                    <i class="fas fa-lock"></i>
-                    <span data-i18n="encrypt-btn">تشفير الملف</span>
-                </button>
-
-                <!-- Status Messages -->
-                <div class="status" id="encrypt-status"></div>
-
-                <!-- Loader -->
-                <div class="loader" id="encryptLoader">
-                    <div class="spinner"></div>
-                    <p data-i18n="processing">جاري تشفير الملف، الرجاء الانتظار...</p>
                 </div>
             </div>
 
-            <!-- Decrypt Section -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-icon">
-                        <i class="fas fa-unlock"></i>
-                    </div>
-                    <h2 class="card-title" data-i18n="decrypt-title">🔓 فك التشفير</h2>
-                </div>
+            <!-- Decrypt Card -->
+            <div class="card-3d decrypt-card" data-tilt data-tilt-max="20" data-tilt-speed="400" data-tilt-perspective="1000">
+                <div class="card-inner">
+                    <div class="card-front">
+                        <div class="card-header">
+                            <div class="card-icon-3d">
+                                <i class="fas fa-unlock"></i>
+                            </div>
+                            <h2 data-i18n="decrypt-title">DECRYPT FILE</h2>
+                            <div class="tech-badge">SECURE DECRYPTION</div>
+                        </div>
+                        
+                        <div class="file-upload-3d" id="decryptUpload">
+                            <div class="upload-area">
+                                <i class="fas fa-file-import"></i>
+                                <p data-i18n="choose-encrypted-file">Select .cvault encrypted file</p>
+                                <p class="file-types" data-i18n="encrypted-only">Encrypted files only</p>
+                            </div>
+                            <input type="file" id="fileInputDecrypt" style="display: none;" accept=".cvault">
+                        </div>
 
-                <!-- File Upload -->
-                <div class="file-upload" id="decryptUpload">
-                    <i class="fas fa-file-import"></i>
-                    <p data-i18n="choose-encrypted-file">اختر ملفًا مشفرًا (.cvault)</p>
-                    <div class="file-info" id="decryptFileInfo" style="display: none;">
-                        <i class="fas fa-file-shield"></i>
-                        <span id="decryptFileName"></span>
-                        <span id="decryptFileSize"></span>
-                    </div>
-                    <input type="file" id="fileInputDecrypt" style="display: none;" accept=".cvault">
-                </div>
+                        <div class="file-info-3d" id="decryptFileInfo">
+                            <div class="file-details">
+                                <i class="fas fa-file-shield"></i>
+                                <div class="file-text">
+                                    <span id="decryptFileName" class="filename">No file selected</span>
+                                    <span id="decryptFileSize" class="filesize">0 MB</span>
+                                </div>
+                            </div>
+                            <div class="file-actions">
+                                <button class="btn-icon" onclick="clearFile('decrypt')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
 
-                <!-- Password Input -->
-                <div class="password-group">
-                    <label class="password-label">
-                        <span data-i18n="password-label-decrypt">كلمة المرور المستخدمة في التشفير</span>
-                    </label>
-                    <div class="password-input">
-                        <input type="password" id="passwordDecrypt" 
-                               placeholder="أدخل كلمة المرور...">
-                        <button type="button" class="toggle-password" onclick="togglePassword('passwordDecrypt')">
-                            <i class="fas fa-eye"></i>
+                        <div class="password-input-3d">
+                            <div class="input-header">
+                                <label data-i18n="password-label-decrypt">ENCRYPTION PASSWORD</label>
+                            </div>
+                            <div class="input-wrapper">
+                                <input type="password" id="passwordDecrypt" 
+                                       placeholder="Enter encryption password...">
+                                <button class="btn-toggle-password" onclick="togglePassword('passwordDecrypt')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="decryption-options">
+                            <div class="option">
+                                <input type="checkbox" id="verifyIntegrity" checked>
+                                <label for="verifyIntegrity" data-i18n="verify-option">Verify file integrity</label>
+                            </div>
+                            <div class="option">
+                                <input type="checkbox" id="wipeAfter" checked>
+                                <label for="wipeAfter" data-i18n="wipe-option">Wipe memory after</label>
+                            </div>
+                        </div>
+
+                        <button class="btn-3d btn-decrypt" id="decryptBtn">
+                            <div class="btn-content">
+                                <i class="fas fa-unlock"></i>
+                                <span data-i18n="decrypt-btn">DECRYPT NOW</span>
+                            </div>
+                            <div class="btn-glow"></div>
                         </button>
                     </div>
-                </div>
-
-                <!-- Progress Bar -->
-                <div class="progress-container" id="decryptProgress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="decryptProgressFill"></div>
+                    
+                    <div class="card-back">
+                        <div class="progress-3d" id="decryptProgress">
+                            <div class="progress-circle">
+                                <svg width="120" height="120" viewBox="0 0 120 120">
+                                    <circle class="progress-bg" cx="60" cy="60" r="54"></circle>
+                                    <circle class="progress-bar" cx="60" cy="60" r="54" 
+                                            style="stroke-dashoffset: 339.292;"></circle>
+                                </svg>
+                                <div class="progress-text">
+                                    <span id="decryptProgressPercent">0</span>
+                                    <span>%</span>
+                                </div>
+                            </div>
+                            <p id="decryptProgressStatus" data-i18n="processing-decrypt">DECRYPTING...</p>
+                            <div class="decryption-details">
+                                <div class="detail">
+                                    <i class="fas fa-shield-check"></i>
+                                    <span data-i18n="integrity">Integrity Check</span>
+                                </div>
+                                <div class="detail">
+                                    <i class="fas fa-memory"></i>
+                                    <span data-i18n="memory-safe">Memory Safe</span>
+                                </div>
+                                <div class="detail">
+                                    <i class="fas fa-bolt"></i>
+                                    <span data-i18n="high-speed">High Speed</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="progress-text">
-                        <span data-i18n="processing">جاري المعالجة...</span>
-                        <span id="decryptProgressText">0%</span>
-                    </div>
-                </div>
-
-                <!-- Decrypt Button -->
-                <button class="btn" id="decryptBtn">
-                    <i class="fas fa-unlock"></i>
-                    <span data-i18n="decrypt-btn">فك التشفير</span>
-                </button>
-
-                <!-- Status Messages -->
-                <div class="status" id="decrypt-status"></div>
-
-                <!-- Loader -->
-                <div class="loader" id="decryptLoader">
-                    <div class="spinner"></div>
-                    <p data-i18n="processing-decrypt">جاري فك تشفير الملف، الرجاء الانتظار...</p>
                 </div>
             </div>
         </div>
 
-        <!-- Security Information -->
-        <div class="security-info">
-            <h3><i class="fas fa-shield-alt"></i> <span data-i18n="security-features">ميزات الأمان المتقدمة</span></h3>
-            <div class="security-details">
-                <div class="security-item">
-                    <i class="fas fa-check-circle"></i>
-                    <span data-i18n="feature-1">AES-256-GCM مع مصادقة</span>
+        <!-- Status Messages 3D -->
+        <div class="status-3d" id="status-container">
+            <div class="status-message success" id="success-status" style="display: none;">
+                <i class="fas fa-check-circle"></i>
+                <span id="success-text"></span>
+            </div>
+            <div class="status-message error" id="error-status" style="display: none;">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="error-text"></span>
+            </div>
+        </div>
+
+        <!-- 3D Stats Panel -->
+        <div class="stats-panel-3d">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-file-alt"></i>
                 </div>
-                <div class="security-item">
-                    <i class="fas fa-check-circle"></i>
-                    <span data-i18n="feature-2">HMAC-SHA256 للتحقق من السلامة</span>
+                <div class="stat-info">
+                    <span class="stat-value" id="filesProcessed">0</span>
+                    <span class="stat-label" data-i18n="files-processed">Files Processed</span>
                 </div>
-                <div class="security-item">
-                    <i class="fas fa-check-circle"></i>
-                    <span data-i18n="feature-3">PBKDF2 مع 310,000 تكرار</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-database"></i>
                 </div>
-                <div class="security-item">
-                    <i class="fas fa-check-circle"></i>
-                    <span data-i18n="feature-4">توقيع رقمي لكل ملف</span>
+                <div class="stat-info">
+                    <span class="stat-value" id="dataEncrypted">0 MB</span>
+                    <span class="stat-label" data-i18n="data-encrypted">Data Encrypted</span>
                 </div>
-                <div class="security-item">
-                    <i class="fas fa-check-circle"></i>
-                    <span data-i18n="feature-5">مسح ذاكرة آمن بعد كل عملية</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-bolt"></i>
                 </div>
-                <div class="security-item">
-                    <i class="fas fa-check-circle"></i>
-                    <span data-i18n="feature-6">حماية من هجمات التوقيت</span>
+                <div class="stat-info">
+                    <span class="stat-value" id="encryptionSpeed">0 ms</span>
+                    <span class="stat-label" data-i18n="avg-speed">Avg Speed</span>
                 </div>
+            </div>
+        </div>
+
+        <!-- Security Badges -->
+        <div class="security-badges-3d">
+            <div class="badge" data-tooltip="Military Grade Encryption">
+                <i class="fas fa-user-secret"></i>
+                <span>AES-256</span>
+            </div>
+            <div class="badge" data-tooltip="Zero Knowledge Architecture">
+                <i class="fas fa-eye-slash"></i>
+                <span>Zero-Knowledge</span>
+            </div>
+            <div class="badge" data-tooltip="Browser Based - No Servers">
+                <i class="fas fa-desktop"></i>
+                <span>Client-Side</span>
+            </div>
+            <div class="badge" data-tooltip="Open Source Security">
+                <i class="fab fa-github"></i>
+                <span>Open Source</span>
             </div>
         </div>
 
         <!-- Footer -->
-        <footer class="footer">
-            <div class="footer-links">
-                <a href="#" onclick="showAbout()" data-i18n="about">حول المشروع</a>
-                <a href="#" onclick="showPrivacy()" data-i18n="privacy">الخصوصية</a>
-                <a href="https://github.com" target="_blank" data-i18n="github">GitHub</a>
+        <footer class="footer-3d">
+            <div class="footer-content">
+                <p class="footer-text" data-i18n="footer-text">
+                    <i class="fas fa-code"></i> CipherVault 3D Pro v4.0 · 
+                    <span data-i18n="engine">Three.js Powered</span> · 
+                    <span data-i18n="zero-trust">Zero-Trust Architecture</span>
+                </p>
+                <div class="footer-links">
+                    <a href="#" onclick="showSecurityAudit()" data-i18n="security-audit">Security Audit</a>
+                    <a href="#" onclick="showPrivacyPolicy()" data-i18n="privacy">Privacy</a>
+                    <a href="#" onclick="showSourceCode()" data-i18n="source">Source Code</a>
+                    <a href="#" onclick="showDocumentation()" data-i18n="docs">Documentation</a>
+                </div>
             </div>
-            <p data-i18n="footer-text">مشروع مفتوح المصدر تحت ترخيص MIT - v2.0.0</p>
-            <p style="margin-top: 10px; font-size: 0.8rem; color: #94a3b8;">
-                <span data-i18n="audit-note">تم تدقيق الأمن بواسطة CipherVault Security Team</span>
-            </p>
         </footer>
     </div>
 
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanilla-tilt@1.7.0/dist/vanilla-tilt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.0.4/dist/pako.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
