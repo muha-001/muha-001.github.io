@@ -1,7 +1,4 @@
 <!DOCTYPE html>
-## 📄 **2. الملف: `index.html`**
-```html
-<!DOCTYPE html>
 <html lang="ar" id="htmlRoot" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -16,7 +13,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="description" content="Military-grade file encryption in your browser. AES-256-GCM + ChaCha20 + Zero-knowledge architecture.">
+    <meta name="description" content="Military-grade file encryption in your browser. AES-256-GCM + Zero-knowledge architecture.">
     <meta name="keywords" content="encryption, security, military, files, AES-256, privacy">
     <meta name="author" content="CipherVault Security Team">
     
@@ -34,7 +31,7 @@
     <!-- Stylesheets -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/pwa.css">
     <link rel="stylesheet" href="assets/css/dark-mode.css">
     
@@ -42,6 +39,9 @@
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" as="script">
     <link rel="preload" href="assets/js/crypto-core.js" as="script">
     <link rel="preload" href="assets/js/main.js" as="script">
+    
+    <!-- Polyfill for older browsers -->
+    <script src="https://cdn.polyfill.io/v3/polyfill.min.js?features=es6,es7,es2017,es2018,es2019,default,Array.prototype.includes,Array.prototype.find,Array.prototype.findIndex,Promise,fetch,Object.assign,Object.values,Symbol,Symbol.iterator,Symbol.asyncIterator,String.prototype.repeat,String.prototype.padStart,String.prototype.padEnd,Number.isFinite,Number.isInteger,Number.isNaN,Number.parseFloat,Number.parseInt,Math.trunc,Math.sign,Math.cbrt,Math.log2,Math.log10,Math.fround,Math.hypot,Math.imul,Math.clz32,Reflect,WeakMap,WeakSet,Set,Map,Intl,Intl.NumberFormat,Intl.DateTimeFormat"></script>
 </head>
 <body>
     <!-- Three.js Canvas -->
@@ -199,7 +199,7 @@
                                     <h5>High</h5>
                                     <p>Maximum security for sensitive data</p>
                                     <ul>
-                                        <li>AES-256 + ChaCha20</li>
+                                        <li>AES-256 + AES-CBC</li>
                                         <li>600K iterations</li>
                                         <li>Three layers</li>
                                     </ul>
@@ -806,7 +806,7 @@
         <div class="security-badges-3d">
             <div class="badge" data-tooltip="Military Grade AES-256 Encryption">
                 <i class="fas fa-user-secret"></i>
-                <span>AES-256 + ChaCha20</span>
+                <span>AES-256 + AES-CBC</span>
             </div>
             <div class="badge" data-tooltip="Zero Knowledge Architecture - No Data Leaves Your Browser">
                 <i class="fas fa-eye-slash"></i>
