@@ -1,15 +1,13 @@
 {
     "name": "CipherVault Pro - Military Encryption",
     "short_name": "CipherVault",
-    "description": "Military-grade file encryption with AES-256-GCM, ChaCha20, and zero-knowledge architecture",
+    "description": "Military-grade file encryption with AES-256-GCM and zero-knowledge architecture",
     "start_url": "/",
     "display": "standalone",
-    "display_override": ["window-controls-overlay", "standalone", "browser"],
     "background_color": "#050510",
     "theme_color": "#00d4ff",
     "orientation": "any",
     "scope": "/",
-    "id": "/",
     "lang": "en",
     "dir": "ltr",
     "categories": ["security", "productivity", "utilities"],
@@ -39,12 +37,6 @@
             "purpose": "any"
         },
         {
-            "src": "assets/icons/icon-152x152.png",
-            "sizes": "152x152",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
             "src": "assets/icons/icon-192x192.png",
             "sizes": "192x192",
             "type": "image/png",
@@ -61,12 +53,6 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "any maskable"
-        },
-        {
-            "src": "assets/icons/icon-512x512-maskable.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "maskable"
         }
     ],
     "screenshots": [
@@ -83,13 +69,6 @@
             "type": "image/png",
             "form_factor": "narrow",
             "label": "Mobile version of CipherVault Pro"
-        },
-        {
-            "src": "assets/screenshots/tablet-1536x2048.png",
-            "sizes": "1536x2048",
-            "type": "image/png",
-            "form_factor": "wide",
-            "label": "Tablet version of CipherVault Pro"
         }
     ],
     "shortcuts": [
@@ -118,82 +97,11 @@
                     "type": "image/png"
                 }
             ]
-        },
-        {
-            "name": "Security Audit",
-            "short_name": "Audit",
-            "description": "View security audit and logs",
-            "url": "/#audit",
-            "icons": [
-                {
-                    "src": "assets/icons/shortcut-audit.png",
-                    "sizes": "96x96",
-                    "type": "image/png"
-                }
-            ]
         }
     ],
-    "protocol_handlers": [
-        {
-            "protocol": "web+ciphervault",
-            "url": "/open?file=%s"
-        },
-        {
-            "protocol": "cvault",
-            "url": "/open?file=%s"
-        }
-    ],
-    "edge_side_panel": {
-        "preferred_width": 480
-    },
     "permissions": [
-        "clipboard-write",
-        "clipboard-read",
-        "fileSystem",
-        "fileSystem.write"
+        "clipboard-write"
     ],
-    "file_handlers": [
-        {
-            "action": "/",
-            "accept": {
-                "application/ciphervault": [".cvault", ".cvenc", ".cvmil"],
-                "application/octet-stream": [".encrypted", ".secure"]
-            },
-            "icons": [
-                {
-                    "src": "assets/icons/file-cvault.png",
-                    "sizes": "64x64"
-                }
-            ]
-        }
-    ],
-    "launch_handler": {
-        "client_mode": "focus-existing"
-    },
-    "handle_links": "preferred",
-    "prefer_related_applications": false,
-    "related_applications": [],
-    "share_target": {
-        "action": "/share",
-        "method": "POST",
-        "enctype": "multipart/form-data",
-        "params": {
-            "title": "name",
-            "text": "description",
-            "url": "link",
-            "files": [
-                {
-                    "name": "encrypted_files",
-                    "accept": ["application/ciphervault", "application/octet-stream"]
-                }
-            ]
-        }
-    },
-    "capture_links": "none",
-    "background": {
-        "scripts": ["assets/js/background.js"],
-        "type": "module"
-    },
     "offline_enabled": true,
     "version": "4.1.0",
     "author": "CipherVault Security Team"
