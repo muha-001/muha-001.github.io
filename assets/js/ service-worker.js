@@ -2,7 +2,6 @@
 // Military-Grade Encryption PWA
 
 const CACHE_NAME = 'ciphervault-v4.1';
-const CRYPTO_CACHE = 'crypto-assets-v1';
 const OFFLINE_URL = '/offline.html';
 const MAX_CACHE_SIZE = 100 * 1024 * 1024; // 100MB maximum cache
 
@@ -11,7 +10,7 @@ const PRECACHE_RESOURCES = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/assets/css/main.css',
+  '/assets/css/style.css',
   '/assets/css/pwa.css',
   '/assets/css/dark-mode.css',
   '/assets/js/config.js',
@@ -20,9 +19,7 @@ const PRECACHE_RESOURCES = [
   '/assets/js/crypto-core.js',
   '/assets/js/main.js',
   '/assets/icons/icon-192x192.png',
-  '/assets/icons/icon-512x512.png',
-  '/assets/fonts/Cairo-Regular.woff2',
-  '/assets/fonts/Orbitron-Bold.woff2'
+  '/assets/icons/icon-512x512.png'
 ];
 
 // تركيب Service Worker
@@ -36,13 +33,6 @@ self.addEventListener('install', event => {
         .then(cache => {
           console.log('[Service Worker] Caching app shell');
           return cache.addAll(PRECACHE_RESOURCES);
-        }),
-      
-      // تخزين صفحة Offline
-      fetch(OFFLINE_URL)
-        .then(response => {
-          const offlineCache = caches.open(CACHE_NAME);
-          return offlineCache.then(cache => cache.put(OFFLINE_URL, response));
         }),
       
       // تفعيل Service Worker فوراً
@@ -61,7 +51,7 @@ self.addEventListener('activate', event => {
       caches.keys().then(cacheNames => {
         return Promise.all(
           cacheNames.map(cacheName => {
-            if (cacheName !== CACHE_NAME && cacheName !== CRYPTO_CACHE) {
+            if (cacheName !== CACHE_NAME) {
               console.log('[Service Worker] Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
@@ -70,10 +60,7 @@ self.addEventListener('activate', event => {
       }),
       
       // التحكم في جميع العملاء
-      self.clients.claim(),
-      
-      // إرسال رسالة تفعيل
-      sendMessageToClients({ type: 'SW_ACTIVATED' })
+      self.clients.claim()
     ])
   );
 });
@@ -81,9 +68,7 @@ self.addEventListener('activate', event => {
 // اعتراض الطلبات
 self.addEventListener('fetch', event => {
   // تجاهل طلبات POST وطلبات التشفير
-  if (event.request.method === 'POST' || 
-      event.request.url.includes('/encrypt') ||
-      event.request.url.includes('/decrypt')) {
+  if (event.request.method === 'POST') {
     return;
   }
   
@@ -113,33 +98,17 @@ self.addEventListener('fetch', event => {
             // فتح التخزين وإضافة المورد
             caches.open(CACHE_NAME)
               .then(cache => {
-                // التحقق من حجم التخزين
-                cache.keys().then(keys => {
-                  let totalSize = 0;
-                  const sizePromises = keys.map(key => 
-                    cache.match(key).then(res => res.headers.get('content-length'))
-                  );
-                  
-                  Promise.all(sizePromises).then(sizes => {
-                    sizes.forEach(size => totalSize += parseInt(size || 0));
-                    
-                    if (totalSize < MAX_CACHE_SIZE) {
-                      cache.put(event.request, responseToCache);
-                    } else {
-                      console.log('[Service Worker] Cache limit reached');
-                    }
-                  });
-                });
+                cache.put(event.request, responseToCache);
               });
             
             return response;
           })
           .catch(error => {
-            console.log('[Service Worker] Fetch failed; returning offline page:', error);
+            console.log('[Service Worker] Fetch failed:', error);
             
             // عرض صفحة Offline للطلبات الملاحية
             if (event.request.mode === 'navigate') {
-              return caches.match(OFFLINE_URL);
+              return caches.match('/');
             }
             
             // إرجاع رد افتراضي للطلبات الأخرى
@@ -165,37 +134,11 @@ self.addEventListener('message', event => {
       clearOldCache();
       break;
       
-    case 'UPDATE_AVAILABLE':
-      notifyUpdateAvailable();
-      break;
-      
-    case 'SYNC_CRYPTO_KEYS':
-      syncCryptoKeys(event.data.payload);
-      break;
-      
     case 'GET_CACHE_INFO':
       getCacheInfo(event.source, event.data.requestId);
       break;
   }
 });
-
-// مزامنة مفاتيح التشفير بين التبويبات
-async function syncCryptoKeys(payload) {
-  const clients = await self.clients.matchAll();
-  
-  clients.forEach(client => {
-    if (client.id !== payload.source) {
-      client.postMessage({
-        type: 'CRYPTO_KEY_UPDATE',
-        payload: {
-          keys: payload.keys,
-          timestamp: Date.now(),
-          source: 'service-worker'
-        }
-      });
-    }
-  });
-}
 
 // تخزين أصول إضافية
 async function cacheAdditionalAssets(assets) {
@@ -236,21 +179,6 @@ async function clearOldCache() {
   }
 }
 
-// إعلام بالتحديثات
-function notifyUpdateAvailable() {
-  self.clients.matchAll().then(clients => {
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'UPDATE_AVAILABLE',
-        payload: {
-          version: '4.1.0',
-          timestamp: Date.now()
-        }
-      });
-    });
-  });
-}
-
 // الحصول على معلومات التخزين
 async function getCacheInfo(client, requestId) {
   const cache = await caches.open(CACHE_NAME);
@@ -283,18 +211,9 @@ async function getCacheInfo(client, requestId) {
   });
 }
 
-// إرسال رسالة إلى جميع العملاء
-function sendMessageToClients(message) {
-  self.clients.matchAll().then(clients => {
-    clients.forEach(client => {
-      client.postMessage(message);
-    });
-  });
-}
-
 // Push Notifications
 self.addEventListener('push', event => {
-  console.log('[Service Worker] Push received:', event.data.text());
+  console.log('[Service Worker] Push received:', event.data?.text());
   
   const data = event.data ? JSON.parse(event.data.text()) : {};
   const title = data.title || 'CipherVault Pro';
@@ -306,17 +225,7 @@ self.addEventListener('push', event => {
     data: {
       url: data.url || '/',
       timestamp: Date.now()
-    },
-    actions: [
-      {
-        action: 'open',
-        title: 'Open App'
-      },
-      {
-        action: 'dismiss',
-        title: 'Dismiss'
-      }
-    ]
+    }
   };
   
   event.waitUntil(
@@ -330,54 +239,21 @@ self.addEventListener('notificationclick', event => {
   
   event.notification.close();
   
-  if (event.action === 'open') {
-    event.waitUntil(
-      self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-        .then(clientList => {
-          if (clientList.length > 0) {
-            const client = clientList[0];
-            client.focus();
-            client.postMessage({ type: 'NOTIFICATION_CLICKED', payload: event.notification.data });
-          } else {
-            self.clients.openWindow(event.notification.data.url || '/');
-          }
-        })
-    );
-  }
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(clientList => {
+        if (clientList.length > 0) {
+          const client = clientList[0];
+          client.focus();
+          client.postMessage({ type: 'NOTIFICATION_CLICKED', payload: event.notification.data });
+        } else {
+          self.clients.openWindow(event.notification.data.url || '/');
+        }
+      })
+  );
 });
-
-// الخلفية المزامنة
-self.addEventListener('sync', event => {
-  console.log('[Service Worker] Background sync:', event.tag);
-  
-  if (event.tag === 'sync-crypto-keys') {
-    event.waitUntil(syncCryptoKeysInBackground());
-  }
-});
-
-async function syncCryptoKeysInBackground() {
-  // مزامنة المفاتيح في الخلفية
-  const cache = await caches.open(CRYPTO_CACHE);
-  const keys = await cache.keys();
-  
-  console.log('[Service Worker] Syncing', keys.length, 'crypto keys');
-  return Promise.resolve();
-}
 
 // التعامل مع الأخطاء
 self.addEventListener('error', event => {
   console.error('[Service Worker] Error:', event.error);
-  
-  // تسجيل الخطأ
-  self.clients.matchAll().then(clients => {
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'SW_ERROR',
-        payload: {
-          message: event.error.message,
-          timestamp: Date.now()
-        }
-      });
-    });
-  });
 });
