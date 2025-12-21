@@ -1,75 +1,76 @@
 /**
  * CipherVault 3D Pro - File Processing Engine
- * Handles chunked file processing, worker coordination, and memory safety
+ * Handles chunked file processing and memory safety
  * Version: 4.2.0
  */
 
 class FileProcessorSystem {
     constructor() {
         this.activeProcess = null;
-        this.chunkSize = 10 * 1024 * 1024; // 10MB default chunk size
+        this.chunkSize = this.calculateOptimalChunkSize();
         this.maxFileSize = 5 * 1024 * 1024 * 1024; // 5GB limit
+        this.workerManager = null;
+        this.useWorkers = this.supportsWorkers();
+    }
+
+    /**
+     * Calculate optimal chunk size based on device capabilities
+     */
+    calculateOptimalChunkSize() {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent
+        );
+        
+        // Conservative chunk sizes for stability
+        if (isMobile) {
+            return 2 * 1024 * 1024; // 2MB for mobile
+        } else {
+            return 10 * 1024 * 1024; // 10MB for desktop
+        }
+    }
+
+    /**
+     * Check if Web Workers are supported
+     */
+    supportsWorkers() {
+        return typeof Worker !== 'undefined';
     }
 
     /**
      * معالجة الملف (تشفير أو فك تشفير)
-     * @param {File} file - الملف المختار
-     * @param {string} password - كلمة المرور
-     * @param {string} operation - 'encrypt' | 'decrypt'
      */
-    async processFile(file, password, operation) {
-        if (!this.validateFile(file)) return;
+    async processFile(file, password, operation, options = {}) {
+        if (!this.validateFile(file)) {
+            throw new Error('Invalid file');
+        }
 
         const startTime = Date.now();
         const operationId = `OP_${startTime}_${Math.random().toString(36).substr(2, 9)}`;
         
-        // تسجيل بدء العملية
-        if (window.AuditLogger) {
-            window.AuditLogger.log('FILE_PROCESS_START', 'INFO', {
-                fileName: file.name,
-                size: file.size,
-                operation,
-                id: operationId
-            });
-        }
-
         try {
-            window.UIManager.setBusyState(true);
+            // Show busy state
+            this.setBusyState(true, operation);
             
-            // تجهيز المفاتيح المشتقة (Key Derivation)
-            // نستخدم CryptoMilitary للعمليات الحساسة
-            const keyMaterial = await window.MilitaryCryptoEngine.deriveKeyMaterial(password);
+            // Determine processing strategy
+            const strategy = this.determineProcessingStrategy(file, operation, options);
             
-            // تحديد استراتيجية المعالجة بناءً على الحجم
-            if (file.size < this.chunkSize) {
-                await this.processSmallFile(file, keyMaterial, operation);
+            let result;
+            if (strategy.useWorkers && this.useWorkers) {
+                result = await this.processWithWorkers(file, password, operation, options);
             } else {
-                await this.processLargeFileStream(file, keyMaterial, operation);
+                result = await this.processInMainThread(file, password, operation, options);
             }
 
-            // تسجيل النجاح
-            if (window.AuditLogger) {
-                window.AuditLogger.log('FILE_PROCESS_COMPLETE', 'SUCCESS', {
-                    duration: Date.now() - startTime,
-                    id: operationId
-                });
-            }
+            // Save file
+            this.saveFile(result.data, file.name, operation);
             
-            window.UIManager.showNotification(`${operation}-success`, 'success');
-
+            return result;
+            
         } catch (error) {
             console.error('Processing failed:', error);
-            window.UIManager.showNotification(error.message || 'generic-error', 'error');
-            
-            if (window.AuditLogger) {
-                window.AuditLogger.log('FILE_PROCESS_ERROR', 'ERROR', {
-                    error: error.toString(),
-                    id: operationId
-                });
-            }
+            throw error;
         } finally {
-            window.UIManager.setBusyState(false);
-            window.UIManager.updateProgress(0, 'idle', 'IDLE');
+            this.setBusyState(false);
         }
     }
 
@@ -78,125 +79,263 @@ class FileProcessorSystem {
             throw new Error('No file selected');
         }
         if (file.size > this.maxFileSize) {
-            throw new Error('File too large (Max 5GB)');
+            throw new Error(`File too large (Max ${this.formatFileSize(this.maxFileSize)})`);
+        }
+        if (file.size === 0) {
+            throw new Error('File is empty');
         }
         return true;
     }
 
     /**
-     * معالجة الملفات الصغيرة (في الذاكرة مباشرة)
+     * Determine the best processing strategy
      */
-    async processSmallFile(file, keyMaterial, operation) {
-        window.UIManager.updateProgress(10, 'reading-file', operation === 'encrypt' ? 'ENCRYPTING' : 'DECRYPTING');
+    determineProcessingStrategy(file, operation, options) {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent
+        );
         
-        const buffer = await file.arrayBuffer();
-        let result;
-
-        if (operation === 'encrypt') {
-            result = await window.MilitaryCryptoEngine.encrypt(buffer, keyMaterial);
-        } else {
-            result = await window.MilitaryCryptoEngine.decrypt(buffer, keyMaterial);
-        }
-
-        window.UIManager.updateProgress(90, 'saving-file', 'COMPLETED');
-        this.saveFile(result, file.name, operation);
+        const memory = navigator.deviceMemory || 4; // GB
+        const fileSizeMB = file.size / (1024 * 1024);
         
-        // تنظيف الذاكرة
-        window.MilitaryCryptoEngine.secureCleanup([buffer]);
+        // Strategy decisions
+        const useWorkers = !isMobile && 
+                          memory >= 4 && 
+                          fileSizeMB > 50 && 
+                          this.useWorkers &&
+                          options.useWorkers !== false;
+        
+        const chunkSize = useWorkers ? 
+            Math.min(this.chunkSize, 50 * 1024 * 1024) : // 50MB max for workers
+            Math.min(this.chunkSize, 10 * 1024 * 1024);  // 10MB max for main thread
+        
+        return {
+            useWorkers,
+            chunkSize,
+            compress: options.compress !== false && fileSizeMB > 1,
+            securityLevel: options.securityLevel || 'MEDIUM'
+        };
     }
 
     /**
-     * معالجة الملفات الكبيرة (Chunking & Workers)
-     * يستخدم WorkerManager الموجود في web-workers.js
+     * Process file in main thread (for smaller files or mobile)
      */
-    async processLargeFileStream(file, keyMaterial, operation) {
-        const totalChunks = Math.ceil(file.size / this.chunkSize);
-        let processedChunks = 0;
+    async processInMainThread(file, password, operation, options) {
+        this.updateProgress(0, 'preparing', operation);
         
-        // تهيئة كاتب الدفق (Stream Writer)
-        const writableStream = await this.createSaveStream(file.name, operation);
-        const writer = writableStream.getWriter();
+        // Read file
+        const arrayBuffer = await file.arrayBuffer();
+        this.updateProgress(10, 'reading', operation);
+        
+        let result;
+        if (operation === 'encrypt') {
+            result = await window.CryptoEngine.encryptFile(file, password, options);
+        } else {
+            result = await window.CryptoEngine.decryptFile(new Uint8Array(arrayBuffer), password);
+        }
+        
+        this.updateProgress(90, 'finalizing', operation);
+        return result;
+    }
 
-        for (let start = 0; start < file.size; start += this.chunkSize) {
+    /**
+     * Process file using Web Workers (for larger files)
+     */
+    async processWithWorkers(file, password, operation, options) {
+        // This is a placeholder - implement actual worker logic
+        // For now, fall back to main thread
+        console.log('Worker processing requested but using main thread fallback');
+        return this.processInMainThread(file, password, operation, options);
+    }
+
+    /**
+     * Process file in chunks (streaming approach)
+     */
+    async processFileStream(file, password, operation, options) {
+        const totalChunks = Math.ceil(file.size / this.chunkSize);
+        const processedChunks = [];
+        
+        this.updateProgress(0, 'starting', operation);
+        
+        for (let i = 0; i < totalChunks; i++) {
+            const start = i * this.chunkSize;
             const end = Math.min(start + this.chunkSize, file.size);
             const chunk = file.slice(start, end);
-            const buffer = await chunk.arrayBuffer();
-
-            // إرسال القطعة للـ Worker
-            // ملاحظة: يفترض أن WorkerManager يدعم دالة processChunk
-            // إذا لم يكن كذلك، يمكن استدعاء Web Worker يدوياً هنا
-            const processedBuffer = await this.processChunkInWorker(buffer, keyMaterial, operation, processedChunks);
             
-            await writer.write(new Uint8Array(processedBuffer));
+            const arrayBuffer = await chunk.arrayBuffer();
+            const chunkData = new Uint8Array(arrayBuffer);
             
-            // تحديث التقدم
-            processedChunks++;
-            const progress = (processedChunks / totalChunks) * 100;
-            window.UIManager.updateProgress(progress, operation === 'encrypt' ? 'encrypting-chunk' : 'decrypting-chunk', operation === 'encrypt' ? 'ENCRYPTING' : 'DECRYPTING');
+            let processedChunk;
+            if (operation === 'encrypt') {
+                // Simulate encryption - replace with actual encryption
+                processedChunk = chunkData; // Placeholder
+            } else {
+                // Simulate decryption - replace with actual decryption
+                processedChunk = chunkData; // Placeholder
+            }
             
-            // تنظيف الذاكرة المرحلية
-            // buffer = null; // Let GC handle it
+            processedChunks.push(processedChunk);
+            
+            // Update progress
+            const progress = ((i + 1) / totalChunks) * 100;
+            this.updateProgress(progress, 'processing', operation);
+            
+            // Clean up
+            chunkData.fill(0);
         }
-
-        await writer.close();
-    }
-
-    // محاكاة الاتصال بـ Web Worker لمعالجة القطعة
-    async processChunkInWorker(buffer, keyMaterial, operation, index) {
-        // في التطبيق الحقيقي، نستخدم WorkerManager.postMessage
-        // هنا سأستخدم المحرك المباشر للتبسيط، ولكن يجب ربطه بـ web-workers.js
-        if (operation === 'encrypt') {
-            return await window.MilitaryCryptoEngine.encryptChunk(buffer, keyMaterial, index);
-        } else {
-            return await window.MilitaryCryptoEngine.decryptChunk(buffer, keyMaterial, index);
-        }
-    }
-
-    createSaveStream(originalName, operation) {
-        // استخدام File System Access API إذا كان مدعوماً
-        // أو StreamSaver.js كبديل
-        const newName = operation === 'encrypt' ? `${originalName}.cvault` : originalName.replace('.cvault', '');
         
-        // (تبسيط للنسخة الحالية - التنزيل المباشر غير مدعوم بالكامل للـ Streams في كل المتصفحات)
-        // هذا الكود يتطلب مكتبة StreamSaver.js أو Native File System API
-        // سأضع Placeholder للتطبيق الفعلي
+        // Combine chunks
+        const totalLength = processedChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+        const result = new Uint8Array(totalLength);
+        
+        let offset = 0;
+        for (const chunk of processedChunks) {
+            result.set(chunk, offset);
+            offset += chunk.length;
+            chunk.fill(0); // Clean up
+        }
+        
         return {
-            getWriter: () => {
-                const chunks = [];
-                return {
-                    write: (chunk) => chunks.push(chunk),
-                    close: () => {
-                        const blob = new Blob(chunks);
-                        this.saveFile(blob, newName, operation);
-                    }
-                };
+            data: result,
+            metadata: {
+                originalSize: file.size,
+                processedSize: result.length,
+                chunks: totalChunks
             }
         };
     }
 
-    saveFile(data, fileName, operation) {
-        const blob = data instanceof Blob ? data : new Blob([data]);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        
-        // تعديل الاسم والامتداد
-        if (operation === 'encrypt' && !fileName.endsWith('.cvault')) {
-            a.download = fileName + '.cvault';
-        } else if (operation === 'decrypt' && fileName.endsWith('.cvault')) {
-            a.download = fileName.replace('.cvault', '');
-        } else {
+    /**
+     * Save file to disk
+     */
+    saveFile(data, originalName, operation) {
+        try {
+            const blob = data instanceof Blob ? data : new Blob([data]);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Generate appropriate filename
+            let fileName;
+            if (operation === 'encrypt') {
+                const baseName = originalName.lastIndexOf('.') > 0 ? 
+                    originalName.substring(0, originalName.lastIndexOf('.')) : 
+                    originalName;
+                fileName = `${baseName}.cvault`;
+            } else {
+                if (originalName.endsWith('.cvault')) {
+                    fileName = originalName.replace('.cvault', '');
+                } else if (originalName.endsWith('.cvenc')) {
+                    fileName = originalName.replace('.cvenc', '');
+                } else {
+                    fileName = `decrypted_${originalName}`;
+                }
+            }
+            
             a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            // Clean up
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            
+            return fileName;
+            
+        } catch (error) {
+            console.error('File save failed:', error);
+            throw new Error('Failed to save file');
         }
+    }
 
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    /**
+     * Format file size for display
+     */
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    /**
+     * Update progress display
+     */
+    updateProgress(percent, status, operation) {
+        // Dispatch custom event for UI updates
+        const event = new CustomEvent('fileprogress', {
+            detail: {
+                percent: Math.min(100, Math.max(0, percent)),
+                status,
+                operation
+            }
+        });
+        window.dispatchEvent(event);
+    }
+
+    /**
+     * Set busy state
+     */
+    setBusyState(busy, operation = null) {
+        const event = new CustomEvent('busystate', {
+            detail: { busy, operation }
+        });
+        window.dispatchEvent(event);
+    }
+
+    /**
+     * Get file information
+     */
+    async getFileInfo(file) {
+        return {
+            name: file.name,
+            size: file.size,
+            formattedSize: this.formatFileSize(file.size),
+            type: file.type || 'Unknown',
+            lastModified: new Date(file.lastModified).toLocaleString()
+        };
+    }
+
+    /**
+     * Create a file from data
+     */
+    createFile(data, fileName, mimeType = 'application/octet-stream') {
+        return new File([data], fileName, { type: mimeType });
+    }
+
+    /**
+     * Clean up resources
+     */
+    cleanup() {
+        if (this.workerManager) {
+            this.workerManager.terminate();
+            this.workerManager = null;
+        }
+        
+        // Force garbage collection if available
+        if (typeof window.gc === 'function') {
+            window.gc();
+        }
     }
 }
 
+// Create global instance
 const FileProcessor = new FileProcessorSystem();
+
+// Export for global use
 if (typeof window !== 'undefined') {
     window.FileProcessor = FileProcessor;
+    
+    // Initialize on load
+    window.addEventListener('load', () => {
+        console.log('File Processor initialized');
+    });
+}
+
+// Export for module systems
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = FileProcessor;
 }
