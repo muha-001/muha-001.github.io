@@ -65,6 +65,19 @@ class EnhancedPWAManager {
         console.log('Enhanced PWA Manager initialized');
     }
     
+    async checkFileExists(url) {
+        try {
+            const response = await fetch(url, {
+                method: 'HEAD',
+                cache: 'no-store',
+                signal: AbortSignal.timeout(3000)
+            });
+            return response.ok;
+        } catch {
+            return false;
+        }
+    }
+    
     checkInstallStatus() {
         this.installed = window.matchMedia('(display-mode: standalone)').matches || 
                         window.navigator.standalone ||
@@ -83,6 +96,16 @@ class EnhancedPWAManager {
     async registerServiceWorker() {
         if (!('serviceWorker' in navigator)) {
             console.warn('Service Workers not supported');
+            return;
+        }
+        
+        // التحقق من وجود ملف service-worker.js
+        const swExists = await this.checkFileExists('/service-worker.js');
+        if (!swExists) {
+            console.warn('Service Worker file not found, skipping registration');
+            this.logEvent('SERVICE_WORKER_MISSING', 'WARNING', {
+                message: 'service-worker.js file not found on server'
+            });
             return;
         }
         
@@ -138,7 +161,7 @@ class EnhancedPWAManager {
             });
             
             const manifest = await response.json();
-            const currentVersion = '4.2.0'; // يجب أن يكون هذا من التكوين
+            const currentVersion = '4.2.0';
             
             if (manifest.version !== currentVersion) {
                 this.showUpdateNotification(manifest.version);
@@ -326,7 +349,7 @@ class EnhancedPWAManager {
         // فحص الاتصال بشكل دوري
         setInterval(async () => {
             try {
-                const response = await fetch('/ping', {
+                const response = await fetch('/', {
                     method: 'HEAD',
                     cache: 'no-store',
                     signal: AbortSignal.timeout(5000)
@@ -546,11 +569,9 @@ class EnhancedPWAManager {
         
         installPrompt.querySelector('#dismissPWA').addEventListener('click', () => {
             installPrompt.remove();
-            // تأجيل العرض لمدة أسبوع
             localStorage.setItem('pwa_prompt_dismissed', Date.now().toString());
         });
         
-        // إغلاق تلقائي بعد 30 ثانية
         setTimeout(() => {
             if (installPrompt.parentNode) {
                 installPrompt.style.opacity = '0';
@@ -585,7 +606,6 @@ class EnhancedPWAManager {
         
         document.body.appendChild(notification);
         
-        // إضافة الأنماط
         if (!document.querySelector('#update-notification-styles')) {
             const styles = document.createElement('style');
             styles.id = 'update-notification-styles';
@@ -709,18 +729,15 @@ class EnhancedPWAManager {
             document.head.appendChild(styles);
         }
         
-        // إضافة أحداث الأزرار
         notification.querySelector('#updateNow').addEventListener('click', () => {
             window.location.reload();
         });
         
         notification.querySelector('#updateLater').addEventListener('click', () => {
             notification.remove();
-            // تأجيل لمدة يوم
             localStorage.setItem('update_notification_dismissed', Date.now().toString());
         });
         
-        // إغلاق تلقائي بعد 60 ثانية
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.style.opacity = '0';
@@ -756,7 +773,6 @@ class EnhancedPWAManager {
     }
     
     showNotification(message, type = 'info') {
-        // إنشاء إشعار مخصص
         const notification = document.createElement('div');
         notification.className = `pwa-notification ${type}`;
         notification.innerHTML = `
@@ -769,7 +785,6 @@ class EnhancedPWAManager {
         
         document.body.appendChild(notification);
         
-        // إضافة الأنماط إذا لم تكن موجودة
         if (!document.querySelector('#pwa-notification-styles')) {
             const styles = document.createElement('style');
             styles.id = 'pwa-notification-styles';
@@ -842,12 +857,10 @@ class EnhancedPWAManager {
             document.head.appendChild(styles);
         }
         
-        // إضافة حدث الإغلاق
         notification.querySelector('.notification-close').addEventListener('click', () => {
             notification.remove();
         });
         
-        // الإزالة التلقائية بعد 5 ثوانٍ
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.style.opacity = '0';
@@ -910,7 +923,6 @@ class EnhancedPWAManager {
             notification.close();
             
             if (data.action) {
-                // تنفيذ الإجراء المحدد
                 this.handleNotificationAction(data.action, data.payload);
             }
         };
@@ -919,17 +931,14 @@ class EnhancedPWAManager {
     handleNotificationAction(action, payload) {
         switch (action) {
             case 'OPEN_FILE':
-                // افتح ملفاً محدداً
                 console.log('Open file:', payload.fileId);
                 break;
                 
             case 'SHOW_REPORT':
-                // عرض تقرير
                 console.log('Show report:', payload.reportId);
                 break;
                 
             case 'UPDATE_APP':
-                // تحديث التطبيق
                 window.location.reload();
                 break;
         }
@@ -973,10 +982,8 @@ class EnhancedPWAManager {
     handleOnlineStatus() {
         this.showNotification('تم استعادة الاتصال بالإنترنت', 'success');
         
-        // محاولة مزامنة أي عمليات معلقة
         this.requestBackgroundSync();
         
-        // تحديث الواجهة
         this.updateConnectionStatus();
     }
     
@@ -986,10 +993,8 @@ class EnhancedPWAManager {
     }
     
     handleAppVisible() {
-        // تحديث البيانات عند عودة المستخدم
         this.checkForUpdates();
         
-        // إرسال إحصاءات الاستخدام
         this.logEvent('APP_VISIBLE', 'INFO', {
             timestamp: Date.now(),
             durationHidden: this.hiddenStart ? Date.now() - this.hiddenStart : 0
@@ -999,7 +1004,6 @@ class EnhancedPWAManager {
     handleAppHidden() {
         this.hiddenStart = Date.now();
         
-        // حفظ الحالة الحالية
         this.saveAppState();
     }
     
@@ -1048,14 +1052,12 @@ class EnhancedPWAManager {
             
             const state = JSON.parse(saved);
             
-            // استعادة موضع التمرير
             if (state.scrollPosition) {
                 setTimeout(() => {
                     window.scrollTo(0, state.scrollPosition);
                 }, 100);
             }
             
-            // استعادة بيانات النماذج
             if (state.formData) {
                 Object.values(state.formData).forEach(formInfo => {
                     const form = document.getElementById(formInfo.id);
@@ -1070,7 +1072,6 @@ class EnhancedPWAManager {
                 });
             }
             
-            // مسح الحالة بعد الاستعادة
             localStorage.removeItem('ciphervault_app_state');
             
         } catch (error) {
