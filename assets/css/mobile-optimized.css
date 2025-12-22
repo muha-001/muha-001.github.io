@@ -1,0 +1,1043 @@
+/* =============================================
+   CipherVault 3D Pro - Mobile Optimized Styles
+   تحسينات مخصصة للهواتف المحمولة
+   تقليل استهلاك الموارد وتحسين تجربة اللمس
+   Version: 4.2.0
+   ============================================= */
+
+/* ===== MOBILE OPTIMIZATION VARIABLES ===== */
+:root {
+    --mobile-breakpoint: 768px;
+    --tablet-breakpoint: 1024px;
+    --touch-target-min: 44px;
+    --mobile-font-scale: 0.85;
+    --mobile-spacing-scale: 0.8;
+}
+
+/* ===== PERFORMANCE OPTIMIZATIONS ===== */
+@media (max-width: 768px) {
+    /* تحسين الأداء على الهواتف */
+    .performance-mode {
+        --card-shadow: none;
+        --glow: none;
+        --transition-normal: none;
+    }
+    
+    .performance-mode * {
+        animation: none !important;
+        transition: none !important;
+        transform: none !important;
+    }
+    
+    .performance-mode .floating-elements,
+    .performance-mode .cube-logo,
+    .performance-mode .btn-glow,
+    .performance-mode .status-message {
+        display: none !important;
+    }
+    
+    /* تقليل تأثيرات Three.js */
+    #threejs-container {
+        opacity: 0.3 !important;
+        filter: blur(2px);
+    }
+    
+    .floating-icon {
+        display: none !important;
+    }
+}
+
+/* ===== TOUCH DEVICE OPTIMIZATIONS ===== */
+@media (hover: none) and (pointer: coarse) {
+    /* تحسين أهداف اللمس */
+    .btn-3d,
+    .btn-icon,
+    .control-btn,
+    .lang-option,
+    .option,
+    .level-btn,
+    .btn-recovery,
+    .btn-progress-action,
+    .status-close,
+    .btn-toggle-password,
+    .btn-generate-password {
+        min-height: var(--touch-target-min) !important;
+        min-width: var(--touch-target-min) !important;
+        padding: 12px !important;
+        font-size: calc(var(--text-base) * 1.1) !important;
+    }
+    
+    /* تحسين التباعد */
+    .card-container-3d {
+        gap: 20px !important;
+    }
+    
+    .security-badges-3d .badge {
+        padding: 12px 20px !important;
+        margin: 5px !important;
+    }
+    
+    /* تحسين تجربة اللمس */
+    input,
+    textarea,
+    select {
+        font-size: 16px !important; /* منع التكبير في iOS */
+    }
+    
+    /* تحسين التنقل */
+    .footer-links a,
+    .footer-links button {
+        padding: 15px 10px !important;
+        display: block !important;
+        text-align: center !important;
+    }
+    
+    /* تحسين التمرير */
+    body {
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .advanced-settings-panel,
+    .recovery-panel {
+        padding: 15px !important;
+        overflow-y: auto !important;
+    }
+    
+    /* تحسين الأزرار ثلاثية الأبعاد */
+    .btn-3d:hover:not(:disabled) {
+        transform: translateY(-5px) scale(1.01) !important;
+    }
+    
+    /* تقليل تأثيرات Hover */
+    .option:hover,
+    .lang-option:hover,
+    .control-btn:hover,
+    .detail:hover,
+    .stat-card:hover,
+    .badge:hover {
+        transform: none !important;
+    }
+    
+    .btn-icon:hover {
+        transform: scale(1.1) rotate(15deg) !important;
+    }
+    
+    /* تحسين Tooltips */
+    [data-tooltip]:before {
+        display: none !important;
+    }
+    
+    /* إضافة مؤشر اللمس */
+    .touch-hint {
+        position: relative;
+    }
+    
+    .touch-hint:after {
+        content: '👆';
+        position: absolute;
+        right: -25px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 18px;
+        opacity: 0.7;
+        animation: pulse 2s infinite;
+    }
+}
+
+/* ===== MOBILE LAYOUT ADJUSTMENTS ===== */
+@media (max-width: 768px) {
+    /* إعادة ترتيب الشاشة */
+    .main-container {
+        padding: 15px !important;
+        max-width: 100% !important;
+    }
+    
+    /* إخفاء العناصر غير الضرورية */
+    .floating-elements,
+    .cube-logo,
+    .security-badges-3d,
+    .pwa-install-prompt,
+    .footer-legal .compatibility,
+    .footer-text span:not(:first-child),
+    .tech-badge span,
+    .option-desc {
+        display: none !important;
+    }
+    
+    /* إعادة ترتيب شريط الأمان */
+    .security-status-bar {
+        position: relative !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        margin: 0 0 20px 0 !important;
+        flex-direction: column !important;
+        padding: 15px !important;
+        border-radius: 15px !important;
+    }
+    
+    .security-indicators {
+        justify-content: center !important;
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+        margin-bottom: 15px !important;
+    }
+    
+    .security-indicator {
+        width: 35px !important;
+        height: 35px !important;
+        font-size: 14px !important;
+    }
+    
+    .security-level-display {
+        text-align: center !important;
+        width: 100% !important;
+    }
+    
+    /* إعادة ترتيب لوحة التحكم */
+    .control-panel-3d {
+        position: relative !important;
+        top: 0 !important;
+        right: 0 !important;
+        justify-content: center !important;
+        margin-bottom: 20px !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+    
+    .language-selector-3d,
+    .settings-controls {
+        width: 100% !important;
+        justify-content: center !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .lang-option {
+        width: 60px !important;
+        height: 60px !important;
+        font-size: 10px !important;
+    }
+    
+    .lang-option i {
+        font-size: 20px !important;
+        margin-bottom: 5px !important;
+    }
+    
+    .control-btn {
+        width: 50px !important;
+        height: 50px !important;
+        font-size: 18px !important;
+    }
+    
+    /* تحسين الشعار */
+    .logo-3d {
+        margin: 30px 0 40px 0 !important;
+    }
+    
+    .logo-text {
+        font-size: 2.2rem !important;
+        letter-spacing: 1px !important;
+        line-height: 1.2 !important;
+    }
+    
+    .tagline {
+        font-size: 0.95rem !important;
+        letter-spacing: 0.5px !important;
+        padding: 0 15px !important;
+    }
+    
+    /* تحسين البطاقات */
+    .card-container-3d {
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
+    }
+    
+    .card-3d {
+        height: auto !important;
+        min-height: 650px !important;
+        margin-bottom: 20px !important;
+    }
+    
+    .card-front,
+    .card-back {
+        padding: 20px !important;
+        border-width: 2px !important;
+        border-radius: 20px !important;
+    }
+    
+    .card-header {
+        flex-direction: column !important;
+        text-align: center !important;
+        gap: 15px !important;
+        margin-bottom: 25px !important;
+        padding-bottom: 15px !important;
+    }
+    
+    .card-icon-3d {
+        width: 70px !important;
+        height: 70px !important;
+        font-size: 30px !important;
+    }
+    
+    .card-header h2 {
+        font-size: 1.8rem !important;
+        text-align: center !important;
+        width: 100% !important;
+    }
+    
+    .tech-badge {
+        margin-top: 10px !important;
+        font-size: 0.8rem !important;
+        padding: 8px 15px !important;
+    }
+    
+    /* تحسين رفع الملفات */
+    .file-upload-3d {
+        padding: 40px 20px !important;
+        margin-bottom: 20px !important;
+        border-width: 3px !important;
+    }
+    
+    .upload-icon {
+        font-size: 50px !important;
+        margin-bottom: 15px !important;
+    }
+    
+    .upload-text {
+        font-size: 1.1rem !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .file-types {
+        font-size: 0.9rem !important;
+    }
+    
+    /* تحسين معلومات الملف */
+    .file-info-3d {
+        padding: 15px !important;
+        border-radius: 15px !important;
+    }
+    
+    .file-details {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+    
+    .file-icon {
+        width: 50px !important;
+        height: 50px !important;
+        font-size: 20px !important;
+    }
+    
+    .filename {
+        font-size: 1rem !important;
+        word-break: break-word !important;
+    }
+    
+    .filesize,
+    .filetype {
+        font-size: 0.85rem !important;
+    }
+    
+    .file-actions {
+        justify-content: center !important;
+        width: 100% !important;
+        margin-top: 10px !important;
+    }
+    
+    /* تحسين حقول كلمة المرور */
+    .password-input-3d {
+        margin-bottom: 20px !important;
+    }
+    
+    .input-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 5px !important;
+    }
+    
+    .password-input-3d input {
+        padding: 20px 50px 20px 15px !important;
+        font-size: 1rem !important;
+    }
+    
+    .btn-toggle-password {
+        right: 50px !important;
+        width: 40px !important;
+        height: 40px !important;
+    }
+    
+    .btn-generate-password {
+        right: 10px !important;
+        width: 40px !important;
+        height: 40px !important;
+    }
+    
+    .password-hints {
+        gap: 5px !important;
+    }
+    
+    .hint {
+        padding: 6px 10px !important;
+        font-size: 0.75rem !important;
+    }
+    
+    /* تحسين خيارات التشفير */
+    .encryption-options,
+    .decryption-options {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+        margin-bottom: 25px !important;
+    }
+    
+    .option {
+        padding: 15px !important;
+    }
+    
+    .option label {
+        font-size: 0.9rem !important;
+    }
+    
+    /* تحسين أزرار الإجراءات */
+    .btn-3d {
+        padding: 20px !important;
+        font-size: 1.1rem !important;
+        margin-top: 5px !important;
+        border-radius: 18px !important;
+    }
+    
+    .btn-content {
+        gap: 10px !important;
+    }
+    
+    .action-info {
+        font-size: 0.9rem !important;
+        margin-top: 10px !important;
+    }
+    
+    /* تحسين شاشة التقدم */
+    .progress-3d {
+        padding: 15px !important;
+    }
+    
+    .progress-circle {
+        width: 120px !important;
+        height: 120px !important;
+        margin-bottom: 25px !important;
+    }
+    
+    .progress-text {
+        font-size: 2rem !important;
+    }
+    
+    .progress-text span:first-child {
+        font-size: 2.5rem !important;
+    }
+    
+    .progress-status {
+        font-size: 1rem !important;
+    }
+    
+    .progress-details,
+    .progress-stats {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    
+    .detail,
+    .stat {
+        padding: 15px !important;
+    }
+    
+    .detail i {
+        font-size: 28px !important;
+    }
+    
+    .progress-actions {
+        margin-top: 20px !important;
+    }
+    
+    /* تحسين لوحة الإحصائيات */
+    .stats-panel-3d {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+        margin: 30px 0 !important;
+    }
+    
+    .stat-card {
+        padding: 20px !important;
+        gap: 15px !important;
+    }
+    
+    .stat-icon {
+        width: 60px !important;
+        height: 60px !important;
+        font-size: 24px !important;
+    }
+    
+    .stat-value {
+        font-size: 2rem !important;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem !important;
+    }
+    
+    /* تحسين الـ Footer */
+    .footer-3d {
+        margin-top: 40px !important;
+        padding: 20px 0 !important;
+    }
+    
+    .footer-security {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 10px !important;
+        margin-bottom: 20px !important;
+    }
+    
+    .security-audit,
+    .connection-status,
+    .memory-status {
+        width: 100% !important;
+        justify-content: center !important;
+        padding: 10px 15px !important;
+    }
+    
+    .footer-text {
+        flex-direction: column !important;
+        gap: 5px !important;
+        font-size: 0.9rem !important;
+        text-align: center !important;
+    }
+    
+    .footer-links {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 15px !important;
+        margin: 15px 0 !important;
+    }
+    
+    .footer-links a {
+        padding: 10px 0 !important;
+        width: 100% !important;
+        text-align: center !important;
+        justify-content: center !important;
+    }
+    
+    .footer-legal {
+        flex-direction: column !important;
+        gap: 10px !important;
+        text-align: center !important;
+    }
+    
+    /* تحسين رسائل الحالة */
+    .status-3d {
+        bottom: 20px !important;
+        left: 2.5% !important;
+        right: 2.5% !important;
+        width: 95% !important;
+        transform: none !important;
+    }
+    
+    .status-message {
+        padding: 20px !important;
+        border-radius: 15px !important;
+    }
+    
+    .status-icon {
+        font-size: 24px !important;
+    }
+    
+    .status-content h4 {
+        font-size: 1rem !important;
+    }
+    
+    .status-content span {
+        font-size: 0.9rem !important;
+    }
+    
+    /* تحسين لوحة الإعدادات */
+    .advanced-settings-panel .settings-container {
+        margin: 60px auto !important;
+        max-width: 95% !important;
+    }
+    
+    .settings-header {
+        padding: 20px !important;
+    }
+    
+    .settings-header h3 {
+        font-size: 1.4rem !important;
+    }
+    
+    .settings-content {
+        padding: 20px !important;
+    }
+    
+    .security-levels {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+    
+    .security-level-option {
+        padding: 20px !important;
+    }
+    
+    /* تحسين التحميل */
+    .loading-screen {
+        padding: 20px !important;
+    }
+    
+    .loading-content {
+        padding: 20px !important;
+        max-width: 90% !important;
+    }
+    
+    .loading-logo {
+        width: 80px !important;
+        height: 80px !important;
+        font-size: 36px !important;
+    }
+    
+    .loading-content h2 {
+        font-size: 1.8rem !important;
+    }
+}
+
+/* ===== SMARTPHONE SPECIFIC OPTIMIZATIONS ===== */
+@media (max-width: 480px) {
+    /* تحسينات إضافية للهواتف الصغيرة */
+    .logo-text {
+        font-size: 1.8rem !important;
+    }
+    
+    .tagline {
+        font-size: 0.85rem !important;
+    }
+    
+    .card-3d {
+        min-height: 600px !important;
+    }
+    
+    .card-front,
+    .card-back {
+        padding: 15px !important;
+    }
+    
+    .file-upload-3d {
+        padding: 30px 15px !important;
+    }
+    
+    .upload-text {
+        font-size: 1rem !important;
+    }
+    
+    .password-input-3d input {
+        padding: 18px 45px 18px 15px !important;
+        font-size: 0.95rem !important;
+    }
+    
+    .btn-3d {
+        padding: 18px !important;
+        font-size: 1rem !important;
+    }
+    
+    .progress-circle {
+        width: 100px !important;
+        height: 100px !important;
+    }
+    
+    .progress-text {
+        font-size: 1.8rem !important;
+    }
+    
+    .progress-text span:first-child {
+        font-size: 2.2rem !important;
+    }
+    
+    /* تحسينات لوحة المفاتيح */
+    .input-wrapper input:focus {
+        font-size: 16px !important; /* منع التكبير */
+    }
+}
+
+/* ===== ORIENTATION SPECIFIC OPTIMIZATIONS ===== */
+@media (max-width: 768px) and (orientation: landscape) {
+    /* تحسينات للوضع الأفقي */
+    .main-container {
+        padding: 10px !important;
+    }
+    
+    .card-container-3d {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+    
+    .card-3d {
+        min-height: 450px !important;
+    }
+    
+    .card-header {
+        flex-direction: row !important;
+        gap: 10px !important;
+        margin-bottom: 15px !important;
+    }
+    
+    .card-icon-3d {
+        width: 50px !important;
+        height: 50px !important;
+        font-size: 22px !important;
+    }
+    
+    .card-header h2 {
+        font-size: 1.2rem !important;
+    }
+    
+    .file-upload-3d {
+        padding: 20px 10px !important;
+        margin-bottom: 15px !important;
+    }
+    
+    .upload-icon {
+        font-size: 36px !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .upload-text {
+        font-size: 0.9rem !important;
+    }
+    
+    .status-3d {
+        bottom: 10px !important;
+        left: 2% !important;
+        right: 2% !important;
+        width: 96% !important;
+    }
+}
+
+/* ===== BATTERY SAVING MODE ===== */
+@media (prefers-reduced-data: reduce) {
+    /* تقليل تحميل البيانات */
+    #threejs-container {
+        display: none !important;
+    }
+    
+    .floating-elements {
+        display: none !important;
+    }
+    
+    .cube-logo {
+        animation: none !important;
+    }
+    
+    /* استخدام ألوان أقل استهلاكاً للطاقة */
+    :root {
+        --primary: #00a8ff;
+        --secondary: #e84118;
+        --accent: #00b894;
+        --glow: none;
+        --card-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .btn-3d,
+    .card-3d,
+    .stat-card {
+        box-shadow: var(--card-shadow) !important;
+    }
+    
+    /* تقليل الحركات */
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ===== DARK MODE OPTIMIZATIONS ===== */
+@media (prefers-color-scheme: dark) and (max-width: 768px) {
+    /* تحسينات للوضع الداكن على الهواتف */
+    :root {
+        --card-bg: rgba(5, 10, 25, 0.98);
+        --input-bg: rgba(0, 0, 0, 0.7);
+        --darker: #020208;
+    }
+    
+    .card-3d,
+    .stat-card {
+        border-color: rgba(0, 212, 255, 0.4) !important;
+    }
+    
+    .btn-3d {
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3) !important;
+    }
+}
+
+/* ===== HIGH CONTRAST MODE FOR ACCESSIBILITY ===== */
+@media (prefers-contrast: high) and (max-width: 768px) {
+    /* تحسينات للنقيض العالي */
+    :root {
+        --primary: #00aaff;
+        --secondary: #ff0066;
+        --accent: #00ff66;
+        --dark: #000000;
+        --light: #ffffff;
+        --card-border: 3px solid var(--primary);
+        --input-border: 2px solid var(--light);
+    }
+    
+    .btn-3d {
+        border: 2px solid white !important;
+    }
+    
+    .security-indicator {
+        border-width: 3px !important;
+    }
+}
+
+/* ===== REDUCED MOTION PREFERENCES ===== */
+@media (prefers-reduced-motion: reduce) and (max-width: 768px) {
+    /* تقليل الحركات للمستخدمين الحساسين */
+    .cube-logo,
+    .floating-icon,
+    .logo-text,
+    .loading-logo,
+    .upload-icon,
+    .btn-glow {
+        animation: none !important;
+    }
+    
+    .card-3d:hover,
+    .btn-3d:hover,
+    .option:hover,
+    .lang-option:hover,
+    .control-btn:hover {
+        transform: none !important;
+        transition: none !important;
+    }
+    
+    .status-message {
+        animation: fadeIn 0.3s ease !important;
+    }
+}
+
+/* ===== TOUCH FEEDBACK ENHANCEMENTS ===== */
+.touch-feedback {
+    position: relative;
+    overflow: hidden;
+}
+
+.touch-feedback:active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: inherit;
+    animation: touch-feedback 0.3s ease;
+}
+
+@keyframes touch-feedback {
+    0% { opacity: 0; transform: scale(0.5); }
+    50% { opacity: 0.5; }
+    100% { opacity: 0; transform: scale(1.2); }
+}
+
+/* تطبيق الـ Touch Feedback على العناصر التفاعلية */
+.btn-3d,
+.btn-icon,
+.control-btn,
+.lang-option,
+.option,
+.level-btn,
+.btn-recovery,
+.btn-progress-action,
+.file-upload-3d {
+    position: relative;
+    overflow: hidden;
+}
+
+/* ===== LOADING OPTIMIZATIONS ===== */
+@media (max-width: 768px) {
+    .loading-screen {
+        background: var(--darker) !important;
+        backdrop-filter: none !important;
+    }
+    
+    .loading-progress .progress-bar {
+        background: linear-gradient(90deg, var(--primary), var(--accent)) !important;
+        animation: loading-pulse 2s ease-in-out infinite !important;
+    }
+    
+    @keyframes loading-pulse {
+        0%, 100% { opacity: 0.7; }
+        50% { opacity: 1; }
+    }
+}
+
+/* ===== EMERGENCY MODE (LOW MEMORY) ===== */
+.low-memory-mode {
+    /* إخفاء جميع التأثيرات المرئية */
+    #threejs-container,
+    .floating-elements,
+    .cube-logo,
+    .btn-glow,
+    .status-message .status-icon,
+    .security-indicator:before,
+    .progress-circle svg circle.progress-bg,
+    .stat-trend i {
+        display: none !important;
+    }
+    
+    /* تبسيط التصميم */
+    .card-3d,
+    .stat-card,
+    .status-message,
+    .file-info-3d,
+    .password-match {
+        background: var(--dark) !important;
+        border: 1px solid var(--gray-dark) !important;
+        box-shadow: none !important;
+    }
+    
+    /* تقليل الحواف */
+    .card-3d,
+    .stat-card,
+    .btn-3d,
+    input,
+    .option {
+        border-radius: 8px !important;
+    }
+    
+    /* إخفاء النصوص الثانوية */
+    .tagline,
+    .option-desc,
+    .file-types,
+    .password-hint,
+    .footer-text span:not(:first-child) {
+        display: none !important;
+    }
+    
+    /* تقليل حجم الخط */
+    .logo-text {
+        font-size: 1.8rem !important;
+    }
+    
+    .card-header h2 {
+        font-size: 1.4rem !important;
+    }
+    
+    /* إخفاء الصور */
+    img:not([src*="icon"]) {
+        display: none !important;
+    }
+}
+
+/* ===== PRINT OPTIMIZATIONS ===== */
+@media print {
+    .card-3d,
+    .floating-elements,
+    .btn-3d,
+    .status-3d,
+    .control-panel-3d,
+    .security-status-bar,
+    .pwa-install-prompt,
+    .loading-screen,
+    .stats-panel-3d,
+    .security-badges-3d {
+        display: none !important;
+    }
+    
+    .card-front,
+    .card-back {
+        box-shadow: none !important;
+        transform: none !important;
+        border: 1px solid #000 !important;
+        background: #fff !important;
+        color: #000 !important;
+        position: static !important;
+        page-break-inside: avoid;
+    }
+    
+    body {
+        background: white !important;
+        color: black !important;
+    }
+    
+    .footer-3d {
+        border-top: 1px solid #000;
+    }
+}
+
+/* ===== UTILITY CLASSES FOR MOBILE ===== */
+.mobile-only {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    .mobile-only {
+        display: block !important;
+    }
+    
+    .desktop-only {
+        display: none !important;
+    }
+}
+
+/* Touch scroll improvements */
+.touch-scroll {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+}
+
+/* Prevent text selection on interactive elements */
+.no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Fast tap response */
+.fast-tap {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+/* Loading skeleton for better perceived performance */
+.skeleton {
+    background: linear-gradient(90deg, var(--dark) 25%, var(--darker) 50%, var(--dark) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+    border-radius: 4px;
+    min-height: 20px;
+}
+
+@keyframes skeleton-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Safe area insets for modern phones */
+@supports (padding: max(0px)) {
+    .safe-area-top {
+        padding-top: max(15px, env(safe-area-inset-top));
+    }
+    
+    .safe-area-bottom {
+        padding-bottom: max(15px, env(safe-area-inset-bottom));
+    }
+    
+    .safe-area-left {
+        padding-left: max(15px, env(safe-area-inset-left));
+    }
+    
+    .safe-area-right {
+        padding-right: max(15px, env(safe-area-inset-right));
+    }
+}
+
+/* ===== END OF MOBILE OPTIMIZED CSS ===== */
