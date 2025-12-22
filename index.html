@@ -13,12 +13,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="description" content="Military-grade file encryption in your browser. AES-256-GCM + Zero-knowledge architecture.">
-    <meta name="keywords" content="encryption, security, military, files, AES-256, privacy">
+    <meta name="description" content="Military-grade file encryption in your browser. AES-256-GCM + Zero-knowledge architecture. Supports files up to 10GB.">
+    <meta name="keywords" content="encryption, security, military, files, AES-256, privacy, 10GB">
     <meta name="author" content="CipherVault Security Team">
     
     <!-- Security Headers -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data: https:;">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
@@ -31,19 +31,62 @@
     <!-- Stylesheets -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="stylesheet" href="assets/css/pwa.css">
-    <link rel="stylesheet" href="assets/css/dark-mode.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/mobile-optimized.css">
     
     <!-- Preload critical resources -->
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" as="script">
-    <link rel="preload" href="assets/js/crypto-core.js" as="script">
-    <link rel="preload" href="assets/js/main.js" as="script">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" as="script" crossorigin>
+    <link rel="preload" href="assets/js/main-enhanced.js" as="script">
+    <link rel="preload" href="assets/js/crypto-core-enhanced.js" as="script">
     
-    <!-- Polyfill for older browsers -->
-    <script src="https://cdn.polyfill.io/v3/polyfill.min.js?features=es6,es7,es2017,es2018,es2019,default,Array.prototype.includes,Array.prototype.find,Array.prototype.findIndex,Promise,fetch,Object.assign,Object.values,Symbol,Symbol.iterator,Symbol.asyncIterator,String.prototype.repeat,String.prototype.padStart,String.prototype.padEnd,Number.isFinite,Number.isInteger,Number.isNaN,Number.parseFloat,Number.parseInt,Math.trunc,Math.sign,Math.cbrt,Math.log2,Math.log10,Math.fround,Math.hypot,Math.imul,Math.clz32,Reflect,WeakMap,WeakSet,Set,Map,Intl,Intl.NumberFormat,Intl.DateTimeFormat"></script>
+    <!-- Polyfills for maximum browser compatibility -->
+    <script>
+        // Browser compatibility detection
+        window.browserCompatibility = {
+            hasCrypto: typeof crypto !== 'undefined' && crypto.subtle,
+            hasWorkers: typeof Worker !== 'undefined',
+            hasStreams: typeof ReadableStream !== 'undefined',
+            hasWebGL: (() => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    return !!(window.WebGLRenderingContext && 
+                        (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+                } catch (e) { return false; }
+            })(),
+            deviceMemory: navigator.deviceMemory || 4,
+            hardwareConcurrency: navigator.hardwareConcurrency || 4,
+            isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+            isLowEnd: function() {
+                return this.deviceMemory < 4 || this.hardwareConcurrency < 4;
+            }
+        };
+        
+        // Load polyfills dynamically
+        if (!window.browserCompatibility.hasCrypto || 
+            !window.browserCompatibility.hasWorkers) {
+            document.write('<script src="https://cdn.polyfill.io/v3/polyfill.min.js?features=es6,es7,es2018,es2019,fetch,Promise,Symbol,Symbol.iterator,Symbol.asyncIterator,Array.prototype.includes,Object.assign,Object.values,Object.entries,String.prototype.padStart,String.prototype.padEnd,Number.isFinite,Number.isInteger,Number.isNaN,Math.trunc,Math.sign,WeakMap,WeakSet,Set,Map,Reflect,URL,URLSearchParams,TextEncoder,TextDecoder,crypto.getRandomValues"><\/script>');
+        }
+    </script>
 </head>
 <body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-logo">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <h2>CipherVault 3D Pro</h2>
+            <p>Initializing military-grade encryption system...</p>
+            <div class="loading-progress">
+                <div class="progress-bar"></div>
+            </div>
+            <div class="loading-details">
+                <span id="loadingStatus">Checking compatibility...</span>
+                <span id="loadingProgress">0%</span>
+            </div>
+        </div>
+    </div>
+
     <!-- Three.js Canvas -->
     <div id="threejs-container"></div>
     
@@ -64,7 +107,7 @@
     </div>
 
     <!-- Main Container -->
-    <div class="main-container">
+    <div class="main-container" style="display: none;">
         <!-- Security Status Bar -->
         <div class="security-status-bar">
             <div class="security-indicators">
@@ -79,6 +122,9 @@
                 </div>
                 <div class="security-indicator" id="securityStorage" title="Secure Storage">
                     <i class="fas fa-database"></i>
+                </div>
+                <div class="security-indicator" id="securityMemory" title="Memory Protection">
+                    <i class="fas fa-memory"></i>
                 </div>
             </div>
             <div class="security-level-display">
@@ -110,6 +156,9 @@
                 <button class="control-btn" id="toggleSecurity" data-tooltip="Security Audit">
                     <i class="fas fa-user-secret"></i>
                 </button>
+                <button class="control-btn" id="togglePerformance" data-tooltip="Performance Mode">
+                    <i class="fas fa-tachometer-alt"></i>
+                </button>
             </div>
         </div>
 
@@ -138,7 +187,7 @@
                 </div>
             </div>
             <h1 class="logo-text" data-i18n="app-title">CIPHERVAULT 3D PRO</h1>
-            <p class="tagline" data-i18n="tagline">Military-Grade Encryption · Zero Trust Architecture</p>
+            <p class="tagline" data-i18n="tagline">Military-Grade Encryption · Zero Trust Architecture · Up to 10GB Files</p>
         </div>
 
         <!-- Advanced Settings Panel (Hidden by default) -->
@@ -166,6 +215,7 @@
                                         <li>AES-256-GCM</li>
                                         <li>100K iterations</li>
                                         <li>Single layer</li>
+                                        <li>Up to 1GB files</li>
                                     </ul>
                                 </div>
                                 <div class="level-selector">
@@ -181,9 +231,10 @@
                                     <h5>Medium</h5>
                                     <p>Balanced security for most files</p>
                                     <ul>
-                                        <li>AES-256-GCM</li>
+                                        <li>AES-256-GCM + ChaCha20</li>
                                         <li>310K iterations</li>
-                                        <li>Dual layer</li>
+                                        <li>Dual layer encryption</li>
+                                        <li>Up to 5GB files</li>
                                     </ul>
                                 </div>
                                 <div class="level-selector">
@@ -199,9 +250,10 @@
                                     <h5>High</h5>
                                     <p>Maximum security for sensitive data</p>
                                     <ul>
-                                        <li>AES-256 + AES-CBC</li>
+                                        <li>AES-256-GCM + AES-CBC + ChaCha20</li>
                                         <li>600K iterations</li>
-                                        <li>Three layers</li>
+                                        <li>Three layers with obfuscation</li>
+                                        <li>Up to 10GB files</li>
                                     </ul>
                                 </div>
                                 <div class="level-selector">
@@ -217,9 +269,11 @@
                                     <h5>Military</h5>
                                     <p>Ultimate protection for classified data</p>
                                     <ul>
-                                        <li>Triple encryption</li>
-                                        <li>1M iterations</li>
-                                        <li>Obfuscation layer</li>
+                                        <li>Quadruple encryption layers</li>
+                                        <li>1M iterations PBKDF2</li>
+                                        <li>Obfuscation + anti-timing</li>
+                                        <li>Memory wipe protection</li>
+                                        <li>Up to 10GB files</li>
                                     </ul>
                                 </div>
                                 <div class="level-selector">
@@ -235,19 +289,29 @@
                             <div class="option-row">
                                 <label>
                                     <input type="checkbox" id="useWorkers" checked>
-                                    <span>Use Web Workers for large files</span>
+                                    <span>Use Web Workers for parallel processing</span>
+                                    <span class="option-desc">Recommended for files > 100MB</span>
                                 </label>
                             </div>
                             <div class="option-row">
                                 <label>
                                     <input type="checkbox" id="enableCompression" checked>
                                     <span>Compress before encryption</span>
+                                    <span class="option-desc">Reduces file size (except media)</span>
                                 </label>
                             </div>
                             <div class="option-row">
                                 <label>
                                     <input type="checkbox" id="enableWipe" checked>
                                     <span>Secure memory wipe after operations</span>
+                                    <span class="option-desc">Overwrites memory 3 times</span>
+                                </label>
+                            </div>
+                            <div class="option-row">
+                                <label>
+                                    <input type="checkbox" id="enableStreaming" checked>
+                                    <span>Stream processing for large files</span>
+                                    <span class="option-desc">Required for files > 1GB</span>
                                 </label>
                             </div>
                         </div>
@@ -260,18 +324,28 @@
                                 <label>
                                     <input type="checkbox" id="autoClear" checked>
                                     <span>Auto-clear passwords after use</span>
+                                    <span class="option-desc">Immediately clears password from memory</span>
                                 </label>
                             </div>
                             <div class="option-row">
                                 <label>
                                     <input type="checkbox" id="disableLogging">
                                     <span>Disable security logging</span>
+                                    <span class="option-desc">Not recommended for sensitive operations</span>
                                 </label>
                             </div>
                             <div class="option-row">
                                 <label>
                                     <input type="checkbox" id="sessionTimeout" checked>
                                     <span>Session timeout after 15 minutes</span>
+                                    <span class="option-desc">Automatically locks the application</span>
+                                </label>
+                            </div>
+                            <div class="option-row">
+                                <label>
+                                    <input type="checkbox" id="hideFilenames">
+                                    <span>Hide original filenames</span>
+                                    <span class="option-desc">Encrypts metadata for additional privacy</span>
                                 </label>
                             </div>
                         </div>
@@ -279,10 +353,10 @@
                 </div>
                 
                 <div class="settings-footer">
-                    <button class="btn-save-settings">
+                    <button class="btn-save-settings" id="saveSettings">
                         <i class="fas fa-save"></i> Save Settings
                     </button>
-                    <button class="btn-reset-settings">
+                    <button class="btn-reset-settings" id="resetSettings">
                         <i class="fas fa-redo"></i> Reset to Defaults
                     </button>
                 </div>
@@ -312,7 +386,7 @@
                                     <i class="fas fa-cloud-upload-alt"></i>
                                 </div>
                                 <p class="upload-text" data-i18n="choose-file">Drag & Drop or Click to Select File</p>
-                                <p class="file-types" data-i18n="supported-files">Supports ALL file types up to 5GB</p>
+                                <p class="file-types" data-i18n="supported-files">Supports ALL file types up to 10GB</p>
                                 <div class="upload-progress" id="encryptUploadProgress">
                                     <div class="progress-bar"></div>
                                 </div>
@@ -328,44 +402,55 @@
                                 <div class="file-text">
                                     <span id="encryptFileName" class="filename">No file selected</span>
                                     <span id="encryptFileSize" class="filesize">0 MB</span>
+                                    <span id="encryptFileType" class="filetype"></span>
                                 </div>
                             </div>
                             <div class="file-actions">
-                                <button class="btn-icon" onclick="clearFile('encrypt')" data-tooltip="Clear File">
+                                <button class="btn-icon" onclick="CipherVault.clearFile('encrypt')" data-tooltip="Clear File">
                                     <i class="fas fa-times"></i>
                                 </button>
-                                <button class="btn-icon" onclick="showFileInfo('encrypt')" data-tooltip="File Details">
+                                <button class="btn-icon" onclick="CipherVault.showFileInfo('encrypt')" data-tooltip="File Details">
                                     <i class="fas fa-info-circle"></i>
+                                </button>
+                                <button class="btn-icon" onclick="CipherVault.analyzeFile('encrypt')" data-tooltip="Analyze File">
+                                    <i class="fas fa-chart-bar"></i>
                                 </button>
                             </div>
                         </div>
 
                         <div class="password-input-3d">
                             <div class="input-header">
-                                <label data-i18n="password-label">PASSWORD (12+ CHARACTERS)</label>
+                                <label data-i18n="password-label">PASSWORD (MINIMUM 12 CHARACTERS)</label>
                                 <div class="strength-meter" id="passwordStrengthEncrypt">
                                     <div class="strength-visual">
                                         <span class="strength-bar weak"></span>
                                         <span class="strength-bar medium"></span>
                                         <span class="strength-bar strong"></span>
+                                        <span class="strength-bar very-strong"></span>
                                     </div>
                                     <span class="strength-text" data-i18n="password-weak">WEAK</span>
                                 </div>
                             </div>
                             <div class="input-wrapper">
                                 <input type="password" id="passwordEncrypt" 
-                                       placeholder="Enter strong password..."
-                                       autocomplete="new-password">
-                                <button class="btn-toggle-password" onclick="togglePassword('passwordEncrypt')"
+                                       placeholder="Enter strong password (12+ characters)..."
+                                       autocomplete="new-password"
+                                       minlength="12">
+                                <button class="btn-toggle-password" onclick="CipherVault.togglePassword('passwordEncrypt')"
                                         data-tooltip="Show/Hide Password">
                                     <i class="fas fa-eye"></i>
                                 </button>
+                                <button class="btn-generate-password" onclick="CipherVault.generatePassword()"
+                                        data-tooltip="Generate Secure Password">
+                                    <i class="fas fa-random"></i>
+                                </button>
                                 <div class="password-hints">
-                                    <span class="hint" id="hintLength" data-i18n="hint-length">12+ chars</span>
-                                    <span class="hint" id="hintUpper" data-i18n="hint-uppercase">Uppercase</span>
-                                    <span class="hint" id="hintLower" data-i18n="hint-lowercase">Lowercase</span>
-                                    <span class="hint" id="hintNumbers" data-i18n="hint-numbers">Numbers</span>
-                                    <span class="hint" id="hintSymbols" data-i18n="hint-symbols">Symbols</span>
+                                    <span class="hint" id="hintLength">12+ chars</span>
+                                    <span class="hint" id="hintUpper">Uppercase</span>
+                                    <span class="hint" id="hintLower">Lowercase</span>
+                                    <span class="hint" id="hintNumbers">Numbers</span>
+                                    <span class="hint" id="hintSymbols">Symbols</span>
+                                    <span class="hint" id="hintEntropy">Entropy</span>
                                 </div>
                             </div>
                         </div>
@@ -378,7 +463,7 @@
                                 <input type="password" id="passwordConfirm" 
                                        placeholder="Re-enter password..."
                                        autocomplete="new-password">
-                                <button class="btn-toggle-password" onclick="togglePassword('passwordConfirm')"
+                                <button class="btn-toggle-password" onclick="CipherVault.togglePassword('passwordConfirm')"
                                         data-tooltip="Show/Hide Password">
                                     <i class="fas fa-eye"></i>
                                 </button>
@@ -389,45 +474,62 @@
                             </div>
                         </div>
 
+                        <div class="security-level-selector">
+                            <h4><i class="fas fa-shield-alt"></i> Encryption Level</h4>
+                            <div class="level-buttons">
+                                <button class="level-btn" data-level="BASIC">Basic</button>
+                                <button class="level-btn active" data-level="MEDIUM">Medium</button>
+                                <button class="level-btn" data-level="HIGH">High</button>
+                                <button class="level-btn" data-level="MILITARY">Military</button>
+                            </div>
+                        </div>
+
                         <div class="encryption-options">
                             <div class="option">
                                 <input type="checkbox" id="compressOption" checked>
                                 <label for="compressOption" data-i18n="compress-option">
                                     <i class="fas fa-compress-alt"></i>
                                     Compress before encryption
+                                    <span class="option-desc">(Except for already compressed files)</span>
                                 </label>
                             </div>
                             <div class="option">
-                                <input type="checkbox" id="splitOption">
+                                <input type="checkbox" id="splitOption" data-tooltip="Split files > 2GB for better compatibility">
                                 <label for="splitOption" data-i18n="split-option">
                                     <i class="fas fa-cut"></i>
-                                    Split large files
+                                    Split large files (>2GB)
                                 </label>
                             </div>
                             <div class="option">
                                 <input type="checkbox" id="integrityOption" checked>
                                 <label for="integrityOption" data-i18n="verify-option">
                                     <i class="fas fa-check-double"></i>
-                                    Verify file integrity
+                                    Verify file integrity (HMAC-SHA512)
                                 </label>
                             </div>
                             <div class="option">
                                 <input type="checkbox" id="wipeOption" checked>
                                 <label for="wipeOption" data-i18n="wipe-option">
                                     <i class="fas fa-eraser"></i>
-                                    Wipe memory after
+                                    Secure memory wipe
                                 </label>
                             </div>
                         </div>
 
-                        <button class="btn-3d btn-encrypt" id="encryptBtn">
-                            <div class="btn-content">
-                                <i class="fas fa-lock"></i>
-                                <span data-i18n="encrypt-btn">ENCRYPT NOW</span>
+                        <div class="encryption-actions">
+                            <button class="btn-3d btn-encrypt" id="encryptBtn" disabled>
+                                <div class="btn-content">
+                                    <i class="fas fa-lock"></i>
+                                    <span data-i18n="encrypt-btn">ENCRYPT NOW</span>
+                                </div>
+                                <div class="btn-glow"></div>
+                                <div class="btn-progress" id="encryptBtnProgress"></div>
+                            </button>
+                            <div class="action-info">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Estimated time: <span id="encryptTimeEstimate">Calculating...</span></span>
                             </div>
-                            <div class="btn-glow"></div>
-                            <div class="btn-progress" id="encryptBtnProgress"></div>
-                        </button>
+                        </div>
                     </div>
                     
                     <div class="card-back">
@@ -444,24 +546,29 @@
                                 </div>
                                 <div class="progress-status">
                                     <i class="fas fa-spinner fa-spin"></i>
-                                    <span id="encryptProgressStatus" data-i18n="processing">PROCESSING...</span>
+                                    <span id="encryptProgressStatus" data-i18n="processing">INITIALIZING...</span>
                                 </div>
                             </div>
                             <div class="progress-details">
                                 <div class="detail">
                                     <i class="fas fa-microchip"></i>
-                                    <span class="detail-label" data-i18n="algo">Algorithm</span>
+                                    <span class="detail-label">Algorithm</span>
                                     <span class="detail-value" id="encryptAlgo">AES-256-GCM</span>
                                 </div>
                                 <div class="detail">
                                     <i class="fas fa-redo"></i>
-                                    <span class="detail-label">PBKDF2</span>
+                                    <span class="detail-label">PBKDF2 Iterations</span>
                                     <span class="detail-value" id="encryptIterations">310,000</span>
                                 </div>
                                 <div class="detail">
                                     <i class="fas fa-fingerprint"></i>
-                                    <span class="detail-label" data-i18n="hmac">HMAC</span>
-                                    <span class="detail-value" id="encryptHmac">SHA-256</span>
+                                    <span class="detail-label">HMAC</span>
+                                    <span class="detail-value" id="encryptHmac">SHA-512</span>
+                                </div>
+                                <div class="detail">
+                                    <i class="fas fa-layer-group"></i>
+                                    <span class="detail-label">Layers</span>
+                                    <span class="detail-value" id="encryptLayers">2</span>
                                 </div>
                             </div>
                             <div class="progress-stats">
@@ -471,12 +578,24 @@
                                 </div>
                                 <div class="stat">
                                     <span class="stat-label">Data Processed:</span>
-                                    <span class="stat-value" id="encryptData">0 MB</span>
+                                    <span class="stat-value" id="encryptData">0 MB / 0 MB</span>
                                 </div>
                                 <div class="stat">
                                     <span class="stat-label">Speed:</span>
                                     <span class="stat-value" id="encryptSpeed">0 MB/s</span>
                                 </div>
+                                <div class="stat">
+                                    <span class="stat-label">Memory Usage:</span>
+                                    <span class="stat-value" id="encryptMemory">0 MB</span>
+                                </div>
+                            </div>
+                            <div class="progress-actions">
+                                <button class="btn-progress-action" id="pauseEncrypt" data-tooltip="Pause Encryption">
+                                    <i class="fas fa-pause"></i>
+                                </button>
+                                <button class="btn-progress-action" id="cancelEncrypt" data-tooltip="Cancel Encryption">
+                                    <i class="fas fa-times"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -504,12 +623,12 @@
                                     <i class="fas fa-file-import"></i>
                                 </div>
                                 <p class="upload-text" data-i18n="choose-encrypted-file">Select .cvault encrypted file</p>
-                                <p class="file-types" data-i18n="encrypted-only">Encrypted files only</p>
+                                <p class="file-types" data-i18n="encrypted-only">Encrypted files only (.cvault, .cvenc, .cvmil)</p>
                                 <div class="upload-progress" id="decryptUploadProgress">
                                     <div class="progress-bar"></div>
                                 </div>
                             </div>
-                            <input type="file" id="fileInputDecrypt" style="display: none;" accept=".cvault,.cvenc,.cvmil">
+                            <input type="file" id="fileInputDecrypt" style="display: none;" accept=".cvault,.cvenc,.cvmil,.cv10g">
                         </div>
 
                         <div class="file-info-3d" id="decryptFileInfo">
@@ -524,11 +643,14 @@
                                 </div>
                             </div>
                             <div class="file-actions">
-                                <button class="btn-icon" onclick="clearFile('decrypt')" data-tooltip="Clear File">
+                                <button class="btn-icon" onclick="CipherVault.clearFile('decrypt')" data-tooltip="Clear File">
                                     <i class="fas fa-times"></i>
                                 </button>
-                                <button class="btn-icon" onclick="showFileInfo('decrypt')" data-tooltip="File Details">
+                                <button class="btn-icon" onclick="CipherVault.showFileInfo('decrypt')" data-tooltip="File Details">
                                     <i class="fas fa-info-circle"></i>
+                                </button>
+                                <button class="btn-icon" onclick="CipherVault.analyzeEncryptedFile()" data-tooltip="Analyze Encryption">
+                                    <i class="fas fa-search"></i>
                                 </button>
                             </div>
                         </div>
@@ -538,14 +660,14 @@
                                 <label data-i18n="password-label-decrypt">ENCRYPTION PASSWORD</label>
                                 <div class="password-hint" id="decryptPasswordHint">
                                     <i class="fas fa-key"></i>
-                                    <span>Enter the password used for encryption</span>
+                                    <span>Enter the exact password used for encryption</span>
                                 </div>
                             </div>
                             <div class="input-wrapper">
                                 <input type="password" id="passwordDecrypt" 
                                        placeholder="Enter encryption password..."
                                        autocomplete="current-password">
-                                <button class="btn-toggle-password" onclick="togglePassword('passwordDecrypt')"
+                                <button class="btn-toggle-password" onclick="CipherVault.togglePassword('passwordDecrypt')"
                                         data-tooltip="Show/Hide Password">
                                     <i class="fas fa-eye"></i>
                                 </button>
@@ -556,19 +678,35 @@
                             </div>
                         </div>
 
+                        <div class="decryption-info" id="decryptionInfo">
+                            <div class="info-item">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>Security Level: <strong id="fileSecurityLevel">Unknown</strong></span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-layer-group"></i>
+                                <span>Encryption Layers: <strong id="fileLayers">Unknown</strong></span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-calendar"></i>
+                                <span>Encrypted: <strong id="fileEncryptedDate">Unknown</strong></span>
+                            </div>
+                        </div>
+
                         <div class="decryption-options">
                             <div class="option">
                                 <input type="checkbox" id="verifyIntegrity" checked>
                                 <label for="verifyIntegrity" data-i18n="verify-option">
                                     <i class="fas fa-shield-check"></i>
                                     Verify file integrity
+                                    <span class="option-desc">(HMAC verification)</span>
                                 </label>
                             </div>
                             <div class="option">
                                 <input type="checkbox" id="wipeAfter" checked>
                                 <label for="wipeAfter" data-i18n="wipe-option">
                                     <i class="fas fa-eraser"></i>
-                                    Wipe memory after
+                                    Secure memory wipe
                                 </label>
                             </div>
                             <div class="option">
@@ -587,14 +725,20 @@
                             </div>
                         </div>
 
-                        <button class="btn-3d btn-decrypt" id="decryptBtn">
-                            <div class="btn-content">
-                                <i class="fas fa-unlock"></i>
-                                <span data-i18n="decrypt-btn">DECRYPT NOW</span>
+                        <div class="decryption-actions">
+                            <button class="btn-3d btn-decrypt" id="decryptBtn" disabled>
+                                <div class="btn-content">
+                                    <i class="fas fa-unlock"></i>
+                                    <span data-i18n="decrypt-btn">DECRYPT NOW</span>
+                                </div>
+                                <div class="btn-glow"></div>
+                                <div class="btn-progress" id="decryptBtnProgress"></div>
+                            </button>
+                            <div class="action-info">
+                                <i class="fas fa-clock"></i>
+                                <span>Estimated time: <span id="decryptTimeEstimate">Calculating...</span></span>
                             </div>
-                            <div class="btn-glow"></div>
-                            <div class="btn-progress" id="decryptBtnProgress"></div>
-                        </button>
+                        </div>
                     </div>
                     
                     <div class="card-back">
@@ -611,24 +755,29 @@
                                 </div>
                                 <div class="progress-status">
                                     <i class="fas fa-spinner fa-spin"></i>
-                                    <span id="decryptProgressStatus" data-i18n="processing-decrypt">DECRYPTING...</span>
+                                    <span id="decryptProgressStatus" data-i18n="processing-decrypt">INITIALIZING...</span>
                                 </div>
                             </div>
                             <div class="progress-details">
                                 <div class="detail">
                                     <i class="fas fa-shield-check"></i>
-                                    <span class="detail-label" data-i18n="integrity">Integrity Check</span>
+                                    <span class="detail-label">Integrity Check</span>
                                     <span class="detail-value" id="decryptIntegrity">Pending...</span>
                                 </div>
                                 <div class="detail">
                                     <i class="fas fa-memory"></i>
-                                    <span class="detail-label" data-i18n="memory-safe">Memory Safe</span>
+                                    <span class="detail-label">Memory Safe</span>
                                     <span class="detail-value" id="decryptMemory">Active</span>
                                 </div>
                                 <div class="detail">
                                     <i class="fas fa-bolt"></i>
-                                    <span class="detail-label" data-i18n="high-speed">High Speed</span>
+                                    <span class="detail-label">Processing Speed</span>
                                     <span class="detail-value" id="decryptSpeed">Optimized</span>
+                                </div>
+                                <div class="detail">
+                                    <i class="fas fa-layer-group"></i>
+                                    <span class="detail-label">Layers</span>
+                                    <span class="detail-value" id="decryptLayers">0/3</span>
                                 </div>
                             </div>
                             <div class="progress-stats">
@@ -638,12 +787,24 @@
                                 </div>
                                 <div class="stat">
                                     <span class="stat-label">Layers Decrypted:</span>
-                                    <span class="stat-value" id="decryptLayers">0/3</span>
+                                    <span class="stat-value" id="decryptLayersProgress">0/3</span>
                                 </div>
                                 <div class="stat">
                                     <span class="stat-label">Security Level:</span>
                                     <span class="stat-value" id="decryptSecurity">Unknown</span>
                                 </div>
+                                <div class="stat">
+                                    <span class="stat-label">Memory Usage:</span>
+                                    <span class="stat-value" id="decryptMemoryUsage">0 MB</span>
+                                </div>
+                            </div>
+                            <div class="progress-actions">
+                                <button class="btn-progress-action" id="pauseDecrypt" data-tooltip="Pause Decryption">
+                                    <i class="fas fa-pause"></i>
+                                </button>
+                                <button class="btn-progress-action" id="cancelDecrypt" data-tooltip="Cancel Decryption">
+                                    <i class="fas fa-times"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -653,83 +814,24 @@
 
         <!-- Status Messages 3D -->
         <div class="status-3d" id="status-container">
-            <div class="status-message success" id="success-status" style="display: none;">
-                <div class="status-icon">
-                    <i class="fas fa-check-circle"></i>
-                </div>
-                <div class="status-content">
-                    <h4>Success!</h4>
-                    <span id="success-text"></span>
-                </div>
-                <button class="status-close" onclick="closeStatus('success')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="status-message error" id="error-status" style="display: none;">
-                <div class="status-icon">
-                    <i class="fas fa-exclamation-circle"></i>
-                </div>
-                <div class="status-content">
-                    <h4>Error!</h4>
-                    <span id="error-text"></span>
-                </div>
-                <button class="status-close" onclick="closeStatus('error')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="status-message warning" id="warning-status" style="display: none;">
-                <div class="status-icon">
-                    <i class="fas fa-exclamation-triangle"></i>
-                </div>
-                <div class="status-content">
-                    <h4>Warning!</h4>
-                    <span id="warning-text"></span>
-                </div>
-                <button class="status-close" onclick="closeStatus('warning')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="status-message info" id="info-status" style="display: none;">
-                <div class="status-icon">
-                    <i class="fas fa-info-circle"></i>
-                </div>
-                <div class="status-content">
-                    <h4>Info</h4>
-                    <span id="info-text"></span>
-                </div>
-                <button class="status-close" onclick="closeStatus('info')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
+            <!-- سيتم إنشاء الإشعارات ديناميكياً -->
         </div>
 
         <!-- Recovery Shard Manager -->
         <div class="recovery-panel" id="recoveryPanel">
             <div class="recovery-container">
                 <div class="recovery-header">
-                    <h3><i class="fas fa-puzzle-piece"></i> Password Recovery</h3>
+                    <h3><i class="fas fa-puzzle-piece"></i> Password Recovery System</h3>
                     <button class="close-recovery" id="closeRecovery">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
                 <div class="recovery-content">
                     <div class="recovery-info">
-                        <p>Your password is split into 5 recovery shards. You need at least 3 shards to recover access.</p>
+                        <p><i class="fas fa-info-circle"></i> Your password is split into 5 recovery shards using Shamir's Secret Sharing algorithm. You need at least 3 shards to recover access.</p>
                     </div>
                     <div class="shards-container">
-                        <div class="shard" data-shard="1">
-                            <div class="shard-icon">
-                                <i class="fas fa-puzzle-piece"></i>
-                            </div>
-                            <div class="shard-info">
-                                <h5>Shard #1</h5>
-                                <p>Upload shard file or enter code</p>
-                            </div>
-                            <div class="shard-status">
-                                <span class="status-badge missing">Missing</span>
-                            </div>
-                        </div>
-                        <!-- Repeat for shards 2-5 -->
+                        <!-- سيتم إنشاء الأجزاء ديناميكياً -->
                     </div>
                     <div class="recovery-actions">
                         <button class="btn-recovery" id="uploadShards">
@@ -737,6 +839,9 @@
                         </button>
                         <button class="btn-recovery" id="enterShardCodes">
                             <i class="fas fa-keyboard"></i> Enter Shard Codes
+                        </button>
+                        <button class="btn-recovery" id="generateShards">
+                            <i class="fas fa-plus-circle"></i> Generate New Shards
                         </button>
                         <button class="btn-recovery" id="recoverPassword" disabled>
                             <i class="fas fa-unlock-alt"></i> Recover Password
@@ -779,7 +884,7 @@
                     <i class="fas fa-bolt"></i>
                 </div>
                 <div class="stat-info">
-                    <span class="stat-value" id="encryptionSpeed">0 ms</span>
+                    <span class="stat-value" id="encryptionSpeed">0 MB/s</span>
                     <span class="stat-label" data-i18n="avg-speed">Avg Speed</span>
                 </div>
                 <div class="stat-trend">
@@ -804,25 +909,25 @@
 
         <!-- Security Badges -->
         <div class="security-badges-3d">
-            <div class="badge" data-tooltip="Military Grade AES-256 Encryption">
+            <div class="badge" data-tooltip="Military Grade AES-256-GCM + ChaCha20-Poly1305 Encryption">
                 <i class="fas fa-user-secret"></i>
-                <span>AES-256 + AES-CBC</span>
+                <span>AES-256 + ChaCha20</span>
             </div>
             <div class="badge" data-tooltip="Zero Knowledge Architecture - No Data Leaves Your Browser">
                 <i class="fas fa-eye-slash"></i>
                 <span>Zero-Knowledge</span>
             </div>
-            <div class="badge" data-tooltip="Works Entirely in Your Browser - No Servers">
-                <i class="fas fa-desktop"></i>
-                <span>Client-Side Only</span>
+            <div class="badge" data-tooltip="Supports Files Up to 10GB - All File Types">
+                <i class="fas fa-file-archive"></i>
+                <span>Up to 10GB</span>
             </div>
-            <div class="badge" data-tooltip="PWA - Install as Native App">
+            <div class="badge" data-tooltip="PWA - Install as Native App - Works Offline">
                 <i class="fas fa-mobile-alt"></i>
                 <span>PWA Ready</span>
             </div>
-            <div class="badge" data-tooltip="Open Source Security">
-                <i class="fab fa-github"></i>
-                <span>Open Source</span>
+            <div class="badge" data-tooltip="Password Recovery System - 5 Shards, 3 Required">
+                <i class="fas fa-puzzle-piece"></i>
+                <span>Recovery System</span>
             </div>
         </div>
 
@@ -859,32 +964,41 @@
                         <i class="fas fa-wifi" id="connectionIcon"></i>
                         <span id="connectionStatus">Online</span>
                     </div>
+                    <div class="memory-status">
+                        <i class="fas fa-memory" id="memoryIcon"></i>
+                        <span id="memoryStatus">Memory Safe</span>
+                    </div>
                 </div>
                 
                 <p class="footer-text" data-i18n="footer-text">
-                    <i class="fas fa-code"></i> CipherVault 3D Pro v4.1 · 
-                    <span data-i18n="engine">Three.js Powered</span> · 
-                    <span data-i18n="zero-trust">Zero-Trust Architecture</span>
+                    <i class="fas fa-code"></i> CipherVault 3D Pro v4.2.0 · 
+                    <span data-i18n="engine">Enhanced Three.js Engine</span> · 
+                    <span data-i18n="zero-trust">Zero-Trust Architecture</span> ·
+                    <span data-i18n="max-files">Supports up to 10GB Files</span>
                 </p>
                 
                 <div class="footer-links">
-                    <a href="#" onclick="showSecurityAudit()" data-i18n="security-audit">
+                    <a href="#" onclick="CipherVault.showSecurityAudit()" data-i18n="security-audit">
                         <i class="fas fa-shield-alt"></i> Security Audit
                     </a>
-                    <a href="#" onclick="showPrivacyPolicy()" data-i18n="privacy">
+                    <a href="#" onclick="CipherVault.showPrivacyPolicy()" data-i18n="privacy">
                         <i class="fas fa-user-secret"></i> Privacy
                     </a>
-                    <a href="#" onclick="showDocumentation()" data-i18n="docs">
+                    <a href="#" onclick="CipherVault.showDocumentation()" data-i18n="docs">
                         <i class="fas fa-book"></i> Documentation
                     </a>
-                    <a href="#" onclick="showAbout()" data-i18n="about">
+                    <a href="#" onclick="CipherVault.showAbout()" data-i18n="about">
                         <i class="fas fa-info-circle"></i> About
+                    </a>
+                    <a href="#" onclick="CipherVault.showCompatibilityInfo()" data-i18n="compatibility">
+                        <i class="fas fa-check-circle"></i> Compatibility
                     </a>
                 </div>
                 
                 <div class="footer-legal">
                     <span class="copyright">© 2024 CipherVault Pro. All rights reserved.</span>
-                    <span class="version">v4.1.0 · Build #2024.01</span>
+                    <span class="version">v4.2.0 · Build #2024.01 · Enhanced Edition</span>
+                    <span class="compatibility" id="browserCompatibility">Compatible with all modern browsers</span>
                 </div>
             </div>
         </footer>
@@ -898,33 +1012,59 @@
     <script src="https://cdn.jsdelivr.net/npm/pako@2.0.4/dist/pako.min.js"></script>
     
     <!-- Application Scripts (Modular) -->
-    <script src="assets/js/config.js"></script>
-    <script src="assets/js/translations.js"></script>
-    <script src="assets/js/three-scene.js"></script>
-    <script src="assets/js/crypto-core.js"></script>
-    <script src="assets/js/crypto-military.js"></script>
-    <script src="assets/js/web-workers.js"></script>
-    <script src="assets/js/audit-log.js"></script>
-    <script src="assets/js/security-audit.js"></script>
-    <script src="assets/js/pwa-manager.js"></script>
+    <script src="assets/js/config-enhanced.js"></script>
+    <script src="assets/js/translations-enhanced.js"></script>
+    <script src="assets/js/three-scene-enhanced.js"></script>
+    <script src="assets/js/crypto-core-enhanced.js"></script>
+    <script src="assets/js/crypto-worker-enhanced.js"></script>
+    <script src="assets/js/file-processor-enhanced.js"></script>
+    <script src="assets/js/web-workers-manager.js"></script>
+    <script src="assets/js/performance-manager.js"></script>
+    <script src="assets/js/audit-logger-enhanced.js"></script>
+    <script src="assets/js/security-audit-enhanced.js"></script>
+    <script src="assets/js/recovery-system-enhanced.js"></script>
+    <script src="assets/js/pwa-manager-enhanced.js"></script>
     <script src="assets/js/ui-manager.js"></script>
-    <script src="assets/js/file-processor.js"></script>
-    <script src="assets/js/recovery-system.js"></script>
-    <script src="assets/js/main.js"></script>
+    <script src="assets/js/browser-compatibility.js"></script>
+    <script src="assets/js/main-enhanced.js"></script>
     
     <!-- Service Worker Registration -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
+                navigator.serviceWorker.register('/service-worker-enhanced.js')
                     .then(registration => {
-                        console.log('ServiceWorker registered:', registration);
+                        console.log('ServiceWorker registered successfully:', registration.scope);
+                        
+                        // Check for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            console.log('New service worker found:', newWorker);
+                            
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('New content is available; please refresh.');
+                                }
+                            });
+                        });
                     })
                     .catch(error => {
-                        console.log('ServiceWorker registration failed:', error);
+                        console.error('ServiceWorker registration failed:', error);
                     });
             });
         }
+        
+        // Handle offline/online status
+        window.addEventListener('online', () => {
+            document.getElementById('connectionStatus').textContent = 'Online';
+            document.getElementById('connectionIcon').className = 'fas fa-wifi';
+        });
+        
+        window.addEventListener('offline', () => {
+            document.getElementById('connectionStatus').textContent = 'Offline';
+            document.getElementById('connectionIcon').className = 'fas fa-wifi-slash';
+            console.log('Application is offline. Encryption/Decryption will still work.');
+        });
     </script>
 </body>
 </html>
