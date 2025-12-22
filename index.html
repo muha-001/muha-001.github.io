@@ -1,12 +1,28 @@
-
-## 📄 **2. الملف: `index.html`**
-```html
 <!DOCTYPE html>
 <html lang="ar" id="htmlRoot" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>CipherVault 3D Pro - Military Grade File Encryption</title>
+    
+    <!-- Polyfill للمتصفحات القديمة مع الحفاظ على الأمان -->
+    <script>
+    // Polyfill آمن لميزات JavaScript الحديثة
+    (function() {
+        if (typeof Promise !== 'function') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>');
+        }
+        if (!Array.prototype.includes) {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/array-includes-polyfill"><\/script>');
+        }
+        if (!window.TextEncoder) {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/text-encoding-polyfill"><\/script>');
+        }
+        if (!window.crypto && !window.msCrypto) {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/webcrypto-shim"><\/script>');
+        }
+    })();
+    </script>
     
     <!-- PWA Meta Tags -->
     <meta name="application-name" content="CipherVault Pro">
@@ -21,9 +37,10 @@
     <meta name="author" content="CipherVault Security Team">
     
     <!-- Security Headers -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self';">
+    <!-- تم نقل CSP إلى هنا داخل head -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self' https://muha-001.github.io; img-src 'self' data: https:;">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="X-Frame-Options" content="DENY">
+    <!-- تم إزالة X-Frame-Options من meta لأنه يجب أن يكون عبر HTTP header فقط -->
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     
     <!-- PWA Manifest -->
@@ -34,11 +51,45 @@
     <!-- Stylesheets -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/main.css">
-    <link rel="stylesheet" href="assets/css/style.css">   
-  
+    
+    <!-- CSS الأساسي المدمج بدلاً من الملف الخارجي المفقود -->
+    <style>
+    /* CSS أساسي حتى يتم تحميل الملف الرئيسي */
+    :root {
+        --primary-color: #050510;
+        --secondary-color: #1a1a2e;
+        --accent-color: #0d47a1;
+        --success-color: #2e7d32;
+        --warning-color: #f57c00;
+        --danger-color: #c62828;
+        --text-primary: #ffffff;
+        --text-secondary: #b0b0b0;
+    }
+    
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Cairo', sans-serif;
+        background: var(--primary-color);
+        color: var(--text-primary);
+        overflow-x: hidden;
+    }
+    
+    .main-container {
+        position: relative;
+        z-index: 1;
+        min-height: 100vh;
+    }
+    
+    /* إضافة تحميل احتياطي للـ CSS المفقود */
+    </style>
+    
+    <link rel="stylesheet" href="assets/css/main.css" onerror="console.warn('CSS ملف غير موجود, جاري استخدام الأنماط الأساسية');">
+    <link rel="stylesheet" href="assets/css/pwa.css" onerror="console.warn('PWA CSS ملف غير موجود');">
+    <link rel="stylesheet" href="assets/css/dark-mode.css" onerror="console.warn('Dark Mode CSS ملف غير موجود');">
+    
     <!-- Preload critical resources -->
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" as="script">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" as="script" crossorigin="anonymous">
     <link rel="preload" href="assets/js/crypto-core.js" as="script">
     <link rel="preload" href="assets/js/main.js" as="script">
 </head>
@@ -311,7 +362,7 @@
                                     <i class="fas fa-cloud-upload-alt"></i>
                                 </div>
                                 <p class="upload-text" data-i18n="choose-file">Drag & Drop or Click to Select File</p>
-                                <p class="file-types" data-i18n="supported-files">Supports ALL file types up to 5GB</p>
+                                <p class="file-types" data-i18n="supported-files">Supports ALL file types up to 10GB</p>
                                 <div class="upload-progress" id="encryptUploadProgress">
                                     <div class="progress-bar"></div>
                                 </div>
@@ -400,7 +451,7 @@
                                 <input type="checkbox" id="splitOption">
                                 <label for="splitOption" data-i18n="split-option">
                                     <i class="fas fa-cut"></i>
-                                    Split large files
+                                    Split large files (>1GB)
                                 </label>
                             </div>
                             <div class="option">
@@ -861,7 +912,7 @@
                 </div>
                 
                 <p class="footer-text" data-i18n="footer-text">
-                    <i class="fas fa-code"></i> CipherVault 3D Pro v4.1 · 
+                    <i class="fas fa-code"></i> CipherVault 3D Pro v4.2 · 
                     <span data-i18n="engine">Three.js Powered</span> · 
                     <span data-i18n="zero-trust">Zero-Trust Architecture</span>
                 </p>
@@ -883,7 +934,7 @@
                 
                 <div class="footer-legal">
                     <span class="copyright">© 2024 CipherVault Pro. All rights reserved.</span>
-                    <span class="version">v4.1.0 · Build #2024.01</span>
+                    <span class="version">v4.2.0 · Build #2024.02</span>
                 </div>
             </div>
         </footer>
@@ -896,33 +947,69 @@
     <script src="https://cdn.jsdelivr.net/npm/vanilla-tilt@1.7.0/dist/vanilla-tilt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pako@2.0.4/dist/pako.min.js"></script>
     
-<!-- Application Scripts (Modular) -->
-<script src="assets/js/config.js"></script>
-<script src="assets/js/translations.js"></script>
-<script src="assets/js/three-scene.js"></script>
-<script src="assets/js/crypto-core.js"></script>
-<script src="assets/js/crypto-military.js"></script>
-<script src="assets/js/audit-log.js"></script>
-<script src="assets/js/security-audit.js"></script>
-<script src="assets/js/pwa-manager.js"></script>
-<script src="assets/js/ui-manager.js"></script>
-<script src="assets/js/file-processor.js"></script>
-<script src="assets/js/recovery-system.js"></script>
-<script src="assets/js/main.js"></script>
+    <!-- Application Scripts (Modular) -->
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/translations.js"></script>
+    <script src="assets/js/three-scene.js"></script>
+    <script src="assets/js/crypto-core.js"></script>
+    <script src="assets/js/crypto-military.js"></script>
+    <script src="assets/js/web-workers.js"></script>
+    <script src="assets/js/audit-log.js"></script>
+    <script src="assets/js/security-audit.js"></script>
+    <script src="assets/js/pwa-manager.js"></script>
+    <script src="assets/js/ui-manager.js"></script>
+    <script src="assets/js/file-processor.js"></script>
+    <script src="assets/js/recovery-system.js"></script>
+    <script src="assets/js/main.js"></script>
     
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Registration - معدل -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
+                navigator.serviceWorker.register('service-worker.js')
                     .then(registration => {
-                        console.log('ServiceWorker registered:', registration);
+                        console.log('ServiceWorker registered successfully:', registration);
                     })
                     .catch(error => {
-                        console.log('ServiceWorker registration failed:', error);
+                        console.warn('ServiceWorker registration failed:', error);
+                        // Continue without service worker
                     });
             });
         }
+    </script>
+    
+    <!-- تهيئة متوافقة مع جميع المتصفحات -->
+    <script>
+        // تهيئة آمنة للتطبيق
+        document.addEventListener('DOMContentLoaded', function() {
+            // التحقق من دعم الميزات الأساسية
+            const requiredFeatures = {
+                'Promise': typeof Promise !== 'undefined',
+                'localStorage': typeof localStorage !== 'undefined',
+                'crypto': typeof crypto !== 'undefined' || typeof msCrypto !== 'undefined',
+                'FileReader': typeof FileReader !== 'undefined',
+                'Uint8Array': typeof Uint8Array !== 'undefined'
+            };
+            
+            const missingFeatures = Object.keys(requiredFeatures).filter(f => !requiredFeatures[f]);
+            
+            if (missingFeatures.length > 0) {
+                console.error('Missing required features:', missingFeatures);
+                document.getElementById('securityLevelValue').textContent = 'UNSUPPORTED BROWSER';
+                alert('Your browser does not support all required features. Please use a modern browser like Chrome, Firefox, or Edge.');
+                return;
+            }
+            
+            // تهيئة آمنة للتطبيق
+            setTimeout(() => {
+                if (typeof window.CipherVaultApp !== 'undefined') {
+                    window.CipherVaultApp.init().catch(err => {
+                        console.error('App initialization failed:', err);
+                        document.getElementById('securityLevelValue').textContent = 'INIT FAILED';
+                    });
+                }
+            }, 1000);
+        });
     </script>
 </body>
 </html>
