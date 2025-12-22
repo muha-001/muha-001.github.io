@@ -1,8 +1,42 @@
 /**
  * CipherVault 3D Pro - Military Grade Cryptography
  * Triple-layer encryption with advanced security features
- * Version: 4.1.0
+ * Version: 4.2.0
  */
+
+// تعريف CryptoCore الأساسي إذا لم يكن موجوداً
+if (typeof CryptoCore === 'undefined') {
+    class CryptoCore {
+        constructor() {
+            this.signature = new Uint8Array([0x43, 0x56, 0x41, 0x4C]); // "CVAL"
+            this.version = 0x42; // Version 4.2
+            this.iterations = {
+                BASIC: 100000,
+                MEDIUM: 310000,
+                HIGH: 600000,
+                MILITARY: 1000000
+            };
+        }
+        
+        updateProgress(operation, percent) {
+            if (typeof window !== 'undefined' && window.updateProgress) {
+                window.updateProgress(operation, percent);
+            }
+        }
+        
+        generateRandomBytes(size) {
+            return crypto.getRandomValues(new Uint8Array(size));
+        }
+        
+        arraysEqual(a, b) {
+            if (a.length !== b.length) return false;
+            for (let i = 0; i < a.length; i++) {
+                if (a[i] !== b[i]) return false;
+            }
+            return true;
+        }
+    }
+}
 
 class MilitaryCrypto extends CryptoCore {
     constructor() {
@@ -182,7 +216,7 @@ class MilitaryCrypto extends CryptoCore {
             this.secureCleanup([
                 fileData,
                 processedData.buffer,
-                ...Object.values(masterKeys).map(k => k.buffer)
+                ...Object.values(masterKeys).filter(k => k && k.buffer).map(k => k.buffer)
             ]);
             
             this.updateProgress('military_encrypt', 100);
@@ -624,7 +658,7 @@ class MilitaryCrypto extends CryptoCore {
     
     async reconstructMasterKeys(password, keyInfo, securityLevel) {
         // Similar to generateMasterKeys but using stored salt
-        const salt = keyInfo.salt;
+        const salt = new Uint8Array(keyInfo.salt);
         const iterations = this.iterations[securityLevel];
         
         const baseKeyMaterial = await crypto.subtle.importKey(
@@ -767,6 +801,59 @@ class MilitaryCrypto extends CryptoCore {
         return String.fromCharCode(Math.abs(secret % 256));
     }
     
+    async deriveShardKey(password, shardId) {
+        const salt = new TextEncoder().encode(`SHARD_${shardId}_KEY`);
+        const keyMaterial = await crypto.subtle.importKey(
+            'raw',
+            new TextEncoder().encode(password),
+            'PBKDF2',
+            false,
+            ['deriveKey']
+        );
+        
+        return await crypto.subtle.deriveKey(
+            {
+                name: 'PBKDF2',
+                salt,
+                iterations: 50000,
+                hash: 'SHA-256'
+            },
+            keyMaterial,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+        );
+    }
+    
+    async encryptShard(shard, key) {
+        const iv = this.generateRandomBytes(12);
+        const data = new TextEncoder().encode(JSON.stringify(shard));
+        
+        const encrypted = await crypto.subtle.encrypt(
+            {
+                name: 'AES-GCM',
+                iv,
+                tagLength: 128
+            },
+            key,
+            data
+        );
+        
+        const result = new Uint8Array(iv.length + encrypted.byteLength);
+        result.set(iv, 0);
+        result.set(new Uint8Array(encrypted), iv.length);
+        
+        return result;
+    }
+    
+    async hashMetadata(metadata) {
+        const data = new TextEncoder().encode(JSON.stringify(metadata));
+        const hash = await crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(hash))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+    }
+    
     // ============================================================================
     // UTILITY METHODS
     // ============================================================================
@@ -880,8 +967,11 @@ class MilitaryCrypto extends CryptoCore {
     
     async compressLayer(data) {
         try {
-            const compressed = pako.deflate(data, { level: 9 });
-            return new Uint8Array(compressed);
+            if (typeof pako !== 'undefined') {
+                const compressed = pako.deflate(data, { level: 9 });
+                return new Uint8Array(compressed);
+            }
+            return data;
         } catch (error) {
             console.warn('Compression failed:', error);
             return data;
@@ -890,8 +980,11 @@ class MilitaryCrypto extends CryptoCore {
     
     async decompressLayer(data) {
         try {
-            const decompressed = pako.inflate(data);
-            return new Uint8Array(decompressed);
+            if (typeof pako !== 'undefined') {
+                const decompressed = pako.inflate(data);
+                return new Uint8Array(decompressed);
+            }
+            return data;
         } catch (error) {
             console.warn('Decompression failed:', error);
             return data;
@@ -939,51 +1032,51 @@ class MilitaryCrypto extends CryptoCore {
                            keyInfoBytes.length + 4 + recoveryInfoBytes.length + 
                            8 + data.length;
         
-        const package = new Uint8Array(packageSize);
-        const view = new DataView(package.buffer);
+        const packageData = new Uint8Array(packageSize);
+        const view = new DataView(packageData.buffer);
         let offset = 0;
         
         // Signature
-        package.set(this.signature, offset);
+        packageData.set(this.signature, offset);
         offset += 4;
         
         // Version
-        package[offset++] = this.version;
+        packageData[offset++] = this.version;
         
         // Metadata
         view.setUint32(offset, metadataBytes.length, false);
         offset += 4;
-        package.set(metadataBytes, offset);
+        packageData.set(metadataBytes, offset);
         offset += metadataBytes.length;
         
         // Key info
         view.setUint32(offset, keyInfoBytes.length, false);
         offset += 4;
-        package.set(keyInfoBytes, offset);
+        packageData.set(keyInfoBytes, offset);
         offset += keyInfoBytes.length;
         
         // Recovery info
         view.setUint32(offset, recoveryInfoBytes.length, false);
         offset += 4;
         if (recoveryInfoBytes.length > 0) {
-            package.set(recoveryInfoBytes, offset);
+            packageData.set(recoveryInfoBytes, offset);
             offset += recoveryInfoBytes.length;
         }
         
         // Data
         view.setBigUint64(offset, BigInt(data.length), false);
         offset += 8;
-        package.set(data, offset);
+        packageData.set(data, offset);
         
-        return package;
+        return packageData;
     }
     
-    async parseEncryptedPackage(package) {
-        const view = new DataView(package.buffer);
+    async parseEncryptedPackage(packageData) {
+        const view = new DataView(packageData.buffer);
         let offset = 0;
         
         // Verify signature
-        const signature = package.slice(offset, offset + 4);
+        const signature = packageData.slice(offset, offset + 4);
         offset += 4;
         
         if (!this.arraysEqual(signature, this.signature)) {
@@ -991,7 +1084,7 @@ class MilitaryCrypto extends CryptoCore {
         }
         
         // Version
-        const version = package[offset++];
+        const version = packageData[offset++];
         if (version !== this.version) {
             throw new Error(`UNSUPPORTED_PACKAGE_VERSION: ${version}`);
         }
@@ -999,14 +1092,14 @@ class MilitaryCrypto extends CryptoCore {
         // Metadata
         const metadataLength = view.getUint32(offset, false);
         offset += 4;
-        const metadataBytes = package.slice(offset, offset + metadataLength);
+        const metadataBytes = packageData.slice(offset, offset + metadataLength);
         offset += metadataLength;
         const metadata = JSON.parse(new TextDecoder().decode(metadataBytes));
         
         // Key info
         const keyInfoLength = view.getUint32(offset, false);
         offset += 4;
-        const keyInfoBytes = package.slice(offset, offset + keyInfoLength);
+        const keyInfoBytes = packageData.slice(offset, offset + keyInfoLength);
         offset += keyInfoLength;
         const keyInfo = JSON.parse(new TextDecoder().decode(keyInfoBytes));
         
@@ -1015,7 +1108,7 @@ class MilitaryCrypto extends CryptoCore {
         offset += 4;
         let recoveryInfo = null;
         if (recoveryInfoLength > 0) {
-            const recoveryInfoBytes = package.slice(offset, offset + recoveryInfoLength);
+            const recoveryInfoBytes = packageData.slice(offset, offset + recoveryInfoLength);
             offset += recoveryInfoLength;
             recoveryInfo = JSON.parse(new TextDecoder().decode(recoveryInfoBytes));
         }
@@ -1023,7 +1116,7 @@ class MilitaryCrypto extends CryptoCore {
         // Data
         const dataLength = Number(view.getBigUint64(offset, false));
         offset += 8;
-        const encryptedData = package.slice(offset, offset + dataLength);
+        const encryptedData = packageData.slice(offset, offset + dataLength);
         
         return {
             metadata,
@@ -1068,19 +1161,28 @@ class MilitaryCrypto extends CryptoCore {
 }
 
 // ============================================================================
-// EXPORT
+// EXPORT - تم إصلاح الخطأ النحوي هنا
 // ============================================================================
 
+// إنشاء نسخة واحدة فقط للتطبيق
 const MilitaryCryptoEngine = new MilitaryCrypto();
 
+// التعامل مع بيئة المتصفح
 if (typeof window !== 'undefined') {
     window.MilitaryCryptoEngine = MilitaryCryptoEngine;
     window.MilitaryCrypto = MilitaryCrypto;
 }
 
+// التعامل مع بيئة Node.js (إذا كانت موجودة)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        MilitaryCrypto,
-        MilitaryCryptoEngine
+        MilitaryCrypto: MilitaryCrypto,
+        MilitaryCryptoEngine: MilitaryCryptoEngine
     };
+}
+
+// للاستخدام كوحدة ES6
+if (typeof exports !== 'undefined') {
+    exports.MilitaryCrypto = MilitaryCrypto;
+    exports.MilitaryCryptoEngine = MilitaryCryptoEngine;
 }
