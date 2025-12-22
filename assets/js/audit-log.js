@@ -86,6 +86,10 @@ class EnhancedAuditLogger {
             });
         } catch (error) {
             console.error('Failed to save logs:', error);
+            this.log('LOGS_SAVE_FAILED', 'ERROR', {
+                error: error.message,
+                timestamp: Date.now()
+            });
         }
     }
     
@@ -101,12 +105,15 @@ class EnhancedAuditLogger {
             
             // ضغط البيانات إذا كان مفعلاً
             let dataToEncrypt = dataBuffer;
-            if (this.compressionEnabled) {
+            if (this.compressionEnabled && typeof pako !== 'undefined') {
                 try {
                     const compressed = pako.deflate(dataBuffer);
                     dataToEncrypt = new Uint8Array(compressed);
                 } catch (error) {
                     console.warn('Log compression failed:', error);
+                    this.log('COMPRESSION_FAILED', 'WARNING', {
+                        error: error.message
+                    });
                 }
             }
             
@@ -123,7 +130,7 @@ class EnhancedAuditLogger {
             const result = {
                 iv: Array.from(iv),
                 data: Array.from(new Uint8Array(encrypted)),
-                compressed: this.compressionEnabled,
+                compressed: this.compressionEnabled && typeof pako !== 'undefined',
                 timestamp: Date.now(),
                 version: '1.0'
             };
@@ -131,6 +138,9 @@ class EnhancedAuditLogger {
             return JSON.stringify(result);
         } catch (error) {
             console.error('Log encryption failed:', error);
+            this.log('ENCRYPTION_FAILED', 'ERROR', {
+                error: error.message
+            });
             return JSON.stringify(logs);
         }
     }
@@ -142,6 +152,12 @@ class EnhancedAuditLogger {
             // إذا لم تكن البيانات مشفرة، ارجعها كما هي
             if (!parsed.iv || !parsed.data) {
                 return parsed;
+            }
+            
+            // إذا لم يكن هناك مفتاح تشفير، ارجع مصفوفة فارغة
+            if (!this.encryptionKey) {
+                console.warn('No encryption key available for decryption');
+                return [];
             }
             
             const iv = new Uint8Array(parsed.iv);
@@ -159,7 +175,7 @@ class EnhancedAuditLogger {
             let decryptedData = new Uint8Array(decrypted);
             
             // فك الضغط إذا كان مضغوطًا
-            if (parsed.compressed) {
+            if (parsed.compressed && typeof pako !== 'undefined') {
                 try {
                     const decompressed = pako.inflate(decryptedData);
                     decryptedData = new Uint8Array(decompressed);
@@ -172,6 +188,9 @@ class EnhancedAuditLogger {
             return JSON.parse(decoder.decode(decryptedData));
         } catch (error) {
             console.error('Log decryption failed:', error);
+            this.log('DECRYPTION_FAILED', 'ERROR', {
+                error: error.message
+            });
             return [];
         }
     }
@@ -201,7 +220,12 @@ class EnhancedAuditLogger {
         setTimeout(() => this.saveLogs(), 100);
         
         // تسجيل في وحدة التحكم للتطوير
-        if (process.env.NODE_ENV === 'development') {
+        // استبدال process.env.NODE_ENV بالتحقق من بيئة المتصفح
+        const isDevelopment = window.location.hostname === 'localhost' || 
+                             window.location.hostname === '127.0.0.1' || 
+                             (window._ENV && window._ENV.NODE_ENV === 'development');
+        
+        if (isDevelopment) {
             console.log(`[Audit] ${severity}: ${type}`, data);
         }
         
