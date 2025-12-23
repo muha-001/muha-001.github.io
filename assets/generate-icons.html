@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate PWA Icons</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .icons-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .icon-preview {
+            text-align: center;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .icon-preview img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖼️ PWA Icon Generator</h1>
+        
+        <div class="info">
+            <p>This tool will generate all required PWA icons for your application.</p>
+            <p><strong>Required sizes:</strong> 72x72, 96x96, 128x128, 144x144, 152x152, 192x192, 384x384, 512x512</p>
+        </div>
+        
+        <div>
+            <button id="generateBtn">Generate & Download All Icons</button>
+            <button id="previewBtn">Preview Icons</button>
+        </div>
+        
+        <div id="status"></div>
+        
+        <div id="previewContainer" class="icons-list" style="display: none;">
+            <!-- Icons will be previewed here -->
+        </div>
+        
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const statusDiv = document.getElementById('status');
+        const previewContainer = document.getElementById('previewContainer');
+        
+        function updateStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+            statusDiv.style.display = 'block';
+            
+            if (type === 'success') {
+                statusDiv.classList.add('success');
+            }
+        }
+        
+        function generateIcon(size, color = '#667eea', text = 'CV') {
+            canvas.width = canvas.height = size;
+            
+            // Reset canvas
+            ctx.clearRect(0, 0, size, size);
+            
+            // Background
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Optional: rounded corners for modern look
+            ctx.beginPath();
+            ctx.roundRect(0, 0, size, size, size * 0.1);
+            ctx.clip();
+            
+            // Text
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size/3}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, size/2, size/2);
+            
+            // Optional: add a subtle shadow
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = size * 0.05;
+            ctx.shadowOffsetX = size * 0.02;
+            ctx.shadowOffsetY = size * 0.02;
+            
+            return canvas.toDataURL('image/png');
+        }
+        
+        function downloadIcon(size, dataUrl) {
+            const link = document.createElement('a');
+            link.download = `icon-${size}x${size}.png`;
+            link.href = dataUrl;
+            
+            // Trigger download
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        function previewIcons() {
+            previewContainer.innerHTML = '';
+            previewContainer.style.display = 'grid';
+            
+            sizes.forEach(size => {
+                const dataUrl = generateIcon(size);
+                
+                const iconDiv = document.createElement('div');
+                iconDiv.className = 'icon-preview';
+                
+                iconDiv.innerHTML = `
+                    <img src="${dataUrl}" alt="Icon ${size}x${size}">
+                    <div>${size}x${size}</div>
+                `;
+                
+                previewContainer.appendChild(iconDiv);
+            });
+            
+            updateStatus('Icons preview generated. Click "Generate & Download" to save them.', 'success');
+        }
+        
+        function generateAllIcons() {
+            updateStatus('Generating icons... Please wait.');
+            
+            let generated = 0;
+            
+            sizes.forEach((size, index) => {
+                setTimeout(() => {
+                    const dataUrl = generateIcon(size);
+                    downloadIcon(size, dataUrl);
+                    generated++;
+                    
+                    updateStatus(`Generating... ${generated}/${sizes.length} icons`);
+                    
+                    if (generated === sizes.length) {
+                        updateStatus(`✅ All ${sizes.length} icons generated and downloaded successfully!`, 'success');
+                        
+                        // Auto-preview after generation
+                        setTimeout(previewIcons, 500);
+                    }
+                }, index * 300); // Stagger downloads to avoid browser blocking
+            });
+        }
+        
+        // Event Listeners
+        document.getElementById('generateBtn').addEventListener('click', generateAllIcons);
+        document.getElementById('previewBtn').addEventListener('click', previewIcons);
+        
+        // Auto-preview on page load
+        window.addEventListener('load', () => {
+            updateStatus('Ready to generate PWA icons. Click "Preview Icons" to see them first.', 'info');
+        });
+    </script>
+</body>
+</html>
