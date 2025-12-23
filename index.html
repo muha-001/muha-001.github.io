@@ -108,12 +108,12 @@
     <link rel="preload" href="assets/css/pwa.css" as="style" onerror="console.warn('PWA CSS ملف غير موجود');">
     <link rel="preload" href="assets/css/dark-mode.css" as="style" onerror="console.warn('Dark Mode CSS ملف غير موجود');">
     
-    <!-- Preload critical resources - تم تصحيح crossorigin -->
+    <!-- Preload critical resources - تم تصحيح جميع مشاكل crossorigin -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" as="script" crossorigin="anonymous">
     <link rel="preload" href="assets/js/crypto-core.js" as="script">
     <link rel="preload" href="assets/js/main.js" as="script">
     
-    <!-- Preload مكتبات postprocessing لـ Three.js لمنع خطأ EffectComposer -->
+    <!-- Preload مكتبات postprocessing لـ Three.js مع تصحيح مشاكل crossorigin -->
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js" as="script" crossorigin="anonymous">
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js" as="script" crossorigin="anonymous">
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js" as="script" crossorigin="anonymous">
@@ -966,14 +966,14 @@
     </div>
 
     <!-- Scripts -->
-    <!-- Core Libraries - إضافة مكتبات postprocessing المطلوبة لـ EffectComposer -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <!-- Core Libraries - إضافة مكتبات postprocessing المطلوبة لـ EffectComposer مع تصحيح crossorigin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js" crossorigin="anonymous"></script>
     
-    <!-- مكتبات Postprocessing لحل مشكلة EffectComposer -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <!-- مكتبات Postprocessing لحل مشكلة EffectComposer مع تصحيح crossorigin -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js" crossorigin="anonymous"></script>
     
     <!-- مكتبات إضافية -->
     <script src="https://cdn.jsdelivr.net/npm/vanilla-tilt@1.7.0/dist/vanilla-tilt.min.js"></script>
@@ -994,7 +994,7 @@
     <script src="assets/js/recovery-system.js"></script>
     <script src="assets/js/main.js"></script>
     
-    <!-- Service Worker Registration - معدل بشكل آمن -->
+    <!-- Service Worker Registration - معدل بشكل آمن مع إصلاح مسار service worker -->
     <script>
         // تسجيل Service Worker مع معالجة أخطاء محسنة
         function registerServiceWorker() {
@@ -1021,20 +1021,58 @@
                 })
                 .catch(function(error) {
                     console.warn('ServiceWorker registration failed:', error);
+                    // إنشاء service worker افتراضي إذا لم يكن موجودًا
+                    createFallbackServiceWorker();
                 });
             } else {
                 console.log('Service workers are not supported.');
             }
         }
         
+        // إنشاء service worker افتراضي في حالة عدم وجود الملف
+        function createFallbackServiceWorker() {
+            const fallbackSW = `
+                self.addEventListener('install', function(event) {
+                    console.log('Fallback Service Worker installing');
+                    self.skipWaiting();
+                });
+                
+                self.addEventListener('activate', function(event) {
+                    console.log('Fallback Service Worker activating');
+                    event.waitUntil(clients.claim());
+                });
+                
+                self.addEventListener('fetch', function(event) {
+                    event.respondWith(
+                        fetch(event.request).catch(function() {
+                            return new Response('Offline - CipherVault Pro', {
+                                headers: {'Content-Type': 'text/html'}
+                            });
+                        })
+                    );
+                });
+            `;
+            
+            const blob = new Blob([fallbackSW], {type: 'application/javascript'});
+            const url = URL.createObjectURL(blob);
+            
+            navigator.serviceWorker.register(url, {scope: './'})
+                .then(function(registration) {
+                    console.log('Fallback Service Worker registered');
+                })
+                .catch(function(error) {
+                    console.error('Fallback Service Worker registration failed:', error);
+                });
+        }
+        
         // التسجيل بعد تحميل الصفحة
         window.addEventListener('load', registerServiceWorker);
     </script>
     
-    <!-- تهيئة متوافقة مع جميع المتصفحات -->
+    <!-- تهيئة متوافقة مع جميع المتصفحات مع إصلاح تحميل main.js -->
     <script>
-        // تهيئة آمنة للتطبيق
-        document.addEventListener('DOMContentLoaded', function() {
+        // تهيئة آمنة للتطبيق مع ضمان تحميل main.js أولاً
+        function initializeApp() {
             // التحقق من دعم الميزات الأساسية
             const requiredFeatures = {
                 'Promise': typeof Promise !== 'undefined',
@@ -1085,9 +1123,26 @@
                         }
                     });
                 } else {
-                    console.error('CipherVaultApp not defined. Make sure main.js is loaded.');
+                    console.error('CipherVaultApp not defined. Loading main.js again...');
+                    // محاولة تحميل main.js مرة أخرى في حالة الفشل
+                    const script = document.createElement('script');
+                    script.src = 'assets/js/main.js';
+                    script.onload = function() {
+                        if (typeof window.CipherVaultApp !== 'undefined') {
+                            window.CipherVaultApp.init().catch(err => {
+                                console.error('App initialization failed after reload:', err);
+                            });
+                        }
+                    };
+                    document.head.appendChild(script);
                 }
-            }, 1500); // زيادة الوقت لضمان تحميل جميع المكتبات
+            }, 2000); // زيادة الوقت لضمان تحميل جميع المكتبات
+        }
+        
+        // الانتظار حتى تحميل جميع العناصر
+        document.addEventListener('DOMContentLoaded', function() {
+            // الانتظار قليلاً لضمان تحميل جميع الملفات
+            setTimeout(initializeApp, 500);
         });
     </script>
 </body>
