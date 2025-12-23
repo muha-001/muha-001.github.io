@@ -1,6 +1,7 @@
 /**
  * CipherVault 3D Pro - مدير التطبيق التقدمي المحسن
- * الإصدار: 4.3.0 - Enhanced Security Edition
+ * الإصدار: 4.3.1 - مصحح من أخطاء console و ServiceWorker
+ * تم الإصلاح: أخطاء دالة console، مشاكل تسجيل ServiceWorker، وتحسين معالجة الأخطاء
  */
 
 class EnhancedPWAManager {
@@ -19,13 +20,13 @@ class EnhancedPWAManager {
         this.config = {
             CACHE_NAME: 'ciphervault-pro-v4.3',
             OFFLINE_CACHE: 'ciphervault-offline-v4.3',
-            CACHE_VERSION: '4.3.0',
+            CACHE_VERSION: '4.3.1',
             PRECACHE_FILES: [
                 '/',
                 '/index.html',
                 '/manifest.json',
                 '/assets/css/main.css',
-                '/assets/css/style.css', // استخدام style.css بدلاً من dark-mode.css
+                '/assets/css/style.css',
                 '/assets/js/main.js',
                 '/assets/js/crypto-core.js',
                 '/assets/js/config.js',
@@ -43,12 +44,19 @@ class EnhancedPWAManager {
             ],
             SYNC_TAG: 'ciphervault-sync',
             BACKGROUND_SYNC_ENABLED: true,
-            PUSH_NOTIFICATIONS_ENABLED: false, // معطلة مؤقتاً للأمان
+            PUSH_NOTIFICATIONS_ENABLED: false,
             OFFLINE_RETRY_LIMIT: 3,
-            PROMPT_DELAY_DAYS: 7 // أيام الانتظار قبل إعادة عرض موجه التثبيت
+            PROMPT_DELAY_DAYS: 7
         };
         
-        this.init();
+        // تهيئة مع معالجة أخطاء محسنة
+        this.init().catch(error => {
+            console.error('Critical PWA Manager initialization error:', error);
+            this.logEvent('PWA_MANAGER_INIT_CRITICAL', 'ERROR', {
+                error: error.message,
+                stack: error.stack
+            });
+        });
     }
     
     async init() {
@@ -88,6 +96,7 @@ class EnhancedPWAManager {
                 error: error.message,
                 stack: error.stack
             });
+            throw error;
         }
     }
     
@@ -275,6 +284,9 @@ class EnhancedPWAManager {
                 type: 'fallback'
             });
             
+            // تنظيف URL بعد التسجيل
+            URL.revokeObjectURL(swURL);
+            
         } catch (error) {
             console.error('Failed to create basic Service Worker:', error);
             this.logEvent('BASIC_SERVICE_WORKER_FAILED', 'ERROR', {
@@ -321,9 +333,19 @@ class EnhancedPWAManager {
             
         } catch (error) {
             console.warn('Update check failed:', error);
+            
+            // التحقق من نوع الخطأ
+            let errorType = 'UNKNOWN';
+            if (error.name === 'AbortError') {
+                errorType = 'TIMEOUT';
+            } else if (error.message.includes('Not found')) {
+                errorType = 'NOT_FOUND';
+            }
+            
             this.logEvent('UPDATE_CHECK_FAILED', 'WARNING', {
                 error: error.message,
-                errorType: error.name,
+                errorType: errorType,
+                errorName: error.name,
                 timestamp: Date.now()
             });
         }
@@ -1512,11 +1534,11 @@ class EnhancedPWAManager {
                     opacity: 0.7;
                     transition: opacity 0.2s;
                     display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 24px;
-                    height: 24px;
-                    border-radius: 50%;
+                        align-items: center;
+                        justify-content: center;
+                        width: 24px;
+                        height: 24px;
+                        border-radius: 50%;
                 }
                 
                 .notification-close:hover {
@@ -1884,9 +1906,10 @@ class EnhancedPWAManager {
     }
     
     /**
-     * تسجيل حدث في سجل التدقيق
+     * تسجيل حدث في سجل التدقيق - الدالة المصححة
      */
     logEvent(type, severity, data) {
+        // أولاً، محاولة تسجيل في AuditLogger إذا كان متاحاً
         if (window.AuditLogger && typeof window.AuditLogger.log === 'function') {
             try {
                 window.AuditLogger.log(type, severity, data, 'pwa-manager');
@@ -1895,9 +1918,29 @@ class EnhancedPWAManager {
             }
         }
         
-        // تسجيل محلي للأحداث المهمة
-        if (severity === 'ERROR' || severity === 'WARNING') {
-            console[severity.toLowerCase()](`PWA Event: ${type}`, data);
+        // تسجيل في console مع التحقق من دالة console المناسبة
+        const severityLower = severity.toLowerCase();
+        const consoleMethods = {
+            'error': console.error,
+            'warning': console.warn,
+            'info': console.info,
+            'debug': console.debug,
+            'log': console.log
+        };
+        
+        const consoleMethod = consoleMethods[severityLower] || console.log;
+        
+        // التحقق من أن consoleMethod هي دالة
+        if (typeof consoleMethod === 'function') {
+            try {
+                consoleMethod(`PWA Event [${severity}]: ${type}`, data);
+            } catch (e) {
+                // Fallback إلى console.log
+                console.log(`PWA Event [${severity}]: ${type}`, data);
+            }
+        } else {
+            // Fallback إذا لم تكن الدالة موجودة
+            console.log(`PWA Event [${severity}]: ${type}`, data);
         }
     }
     
@@ -2004,7 +2047,8 @@ if (typeof window !== 'undefined' && isPwaSupported()) {
             },
             logEvent: (type, severity, data) => {
                 console.log(`[PWA Event - ${severity}]: ${type}`, data);
-            }
+            },
+            showInstallPromptIfNeeded: () => false
         };
         
         window.PWAManager = PWAManager;
