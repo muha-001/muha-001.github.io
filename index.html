@@ -105,8 +105,7 @@
     
     <!-- تصحيح مسارات CSS -->
     <link rel="stylesheet" href="assets/css/main.css" onerror="console.warn('CSS ملف غير موجود, جاري استخدام الأنماط الأساسية');">
-    <link rel="preload" href="assets/css/pwa.css" as="style" onerror="console.warn('PWA CSS ملف غير موجود');">
-    <link rel="preload" href="assets/css/dark-mode.css" as="style" onerror="console.warn('Dark Mode CSS ملف غير موجود');">
+    <link rel="preload" href="assets/css/style.css" as="style" onerror="console.warn('Style CSS ملف غير موجود');">
     
     <!-- Preload critical resources - تم تصحيح جميع مشاكل crossorigin -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" as="script" crossorigin="anonymous">
@@ -979,13 +978,14 @@
     <script src="https://cdn.jsdelivr.net/npm/vanilla-tilt@1.7.0/dist/vanilla-tilt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pako@2.0.4/dist/pako.min.js"></script>
     
-    <!-- Application Scripts (Modular) - تصحيح مسارات JS -->
+    <!-- Application Scripts (Modular) - تصحيح مسارات JS بناءً على الهيكل المرفق -->
     <script src="assets/js/config.js"></script>
     <script src="assets/js/translations.js"></script>
     <script src="assets/js/three-scene.js"></script>
     <script src="assets/js/crypto-core.js"></script>
     <script src="assets/js/crypto-military.js"></script>
-    <script src="assets/js/web-workers.js"></script>
+    <script src="web-workers.js"></script> <!-- موجود في الجذر كما في الصورة الأولى -->
+    <script src="assets/js/crypto-worker.js"></script> <!-- موجود في assets/js كما في الصورة الثانية -->
     <script src="assets/js/audit-log.js"></script>
     <script src="assets/js/security-audit.js"></script>
     <script src="assets/js/pwa-manager.js"></script>
