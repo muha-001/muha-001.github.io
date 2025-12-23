@@ -468,6 +468,9 @@ class WorkerManager {
                 // Worker status update
                 console.log(`Worker ${workerId} status:`, data.status);
                 break;
+                
+            default:
+                console.warn(`Unknown message type from worker ${workerId}:`, data.type);
         }
     }
     
@@ -1024,4 +1027,125 @@ class WorkerManager {
     /**
      * Get statistics
      */
-    getStatistics
+    getStatistics() {
+        const activeWorkers = Array.from(this.workers.values()).filter(w => !w.busy).length;
+        const busyWorkers = Array.from(this.workers.values()).filter(w => w.busy).length;
+        
+        const avgTaskTime = this.performance.tasksCompleted > 0 
+            ? this.performance.totalProcessingTime / this.performance.tasksCompleted 
+            : 0;
+        
+        const workerDetails = Array.from(this.performance.workerStats.entries()).map(([id, stats]) => ({
+            workerId: id,
+            tasksCompleted: stats.tasksCompleted,
+            tasksFailed: stats.tasksFailed,
+            totalTime: stats.totalTime,
+            avgTimePerTask: stats.tasksCompleted > 0 ? stats.totalTime / stats.tasksCompleted : 0
+        }));
+        
+        return {
+            workers: {
+                total: this.workers.size,
+                active: activeWorkers,
+                busy: busyWorkers,
+                details: workerDetails
+            },
+            tasks: {
+                completed: this.performance.tasksCompleted,
+                failed: this.performance.tasksFailed,
+                pending: this.tasks.size,
+                queued: this.taskQueue.length,
+                successRate: this.performance.tasksCompleted > 0 
+                    ? (this.performance.tasksCompleted / (this.performance.tasksCompleted + this.performance.tasksFailed)) * 100 
+                    : 0
+            },
+            performance: {
+                avgTaskTime: avgTaskTime,
+                totalProcessingTime: this.performance.totalProcessingTime,
+                recentTasks: this.performance.taskHistory.slice(-10)
+            },
+            errors: {
+                workerErrors: this.errors.workerErrors,
+                fatalErrors: this.errors.fatalErrors.length,
+                lastErrorTime: this.errors.lastErrorTime
+            },
+            config: {
+                maxWorkers: this.config.pool.maxWorkers,
+                memoryThreshold: this.config.processing.memoryThreshold,
+                chunkSize: this.config.processing.chunkSize
+            }
+        };
+    }
+    
+    /**
+     * Reset statistics
+     */
+    resetStatistics() {
+        this.performance.tasksCompleted = 0;
+        this.performance.tasksFailed = 0;
+        this.performance.totalProcessingTime = 0;
+        this.performance.taskHistory = [];
+        
+        for (const [workerId, stats] of this.performance.workerStats.entries()) {
+            stats.tasksCompleted = 0;
+            stats.tasksFailed = 0;
+            stats.totalTime = 0;
+            stats.lastTaskTime = 0;
+        }
+        
+        this.errors.workerErrors = 0;
+        this.errors.lastErrorTime = 0;
+        this.errors.fatalErrors = [];
+        
+        console.log('Statistics reset');
+    }
+    
+    /**
+     * Get task details
+     */
+    getTaskDetails(taskId) {
+        const task = this.tasks.get(taskId);
+        if (!task) return null;
+        
+        return {
+            id: task.id,
+            operation: task.operation,
+            fileName: task.file.name,
+            fileSize: task.file.size,
+            status: task.status,
+            progress: task.progress,
+            startTime: task.startTime,
+            elapsedTime: Date.now() - task.startTime,
+            workerId: task.workerId
+        };
+    }
+    
+    /**
+     * Get all active tasks
+     */
+    getAllTasks() {
+        const tasks = [];
+        
+        for (const [taskId, task] of this.tasks.entries()) {
+            tasks.push({
+                id: taskId,
+                operation: task.operation,
+                fileName: task.file.name,
+                status: task.status,
+                progress: task.progress,
+                workerId: task.workerId
+            });
+        }
+        
+        return tasks;
+    }
+}
+
+// Export WorkerManager
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = WorkerManager;
+} else if (typeof window !== 'undefined') {
+    window.WorkerManager = WorkerManager;
+}
+
+console.log('Web Workers Manager loaded successfully');
