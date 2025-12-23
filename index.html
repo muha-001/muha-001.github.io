@@ -9,6 +9,10 @@
     <script>
     // Polyfill آمن لميزات JavaScript الحديثة
     (function() {
+        // منع التحميل المزدوج
+        if (window._polyfillsLoaded) return;
+        window._polyfillsLoaded = true;
+        
         if (typeof Promise !== 'function') {
             document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>');
         }
@@ -50,7 +54,7 @@
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json" crossorigin="use-credentials">
     <link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
     
@@ -104,13 +108,12 @@
     </style>
     
     <!-- تصحيح مسارات CSS -->
-    <link rel="stylesheet" href="assets/css/main.css" onerror="console.warn('CSS ملف غير موجود, جاري استخدام الأنماط الأساسية');">
-    <link rel="preload" href="assets/css/style.css" as="style" onerror="console.warn('Style CSS ملف غير موجود');">
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/style.css">
     
     <!-- Preload critical resources - تم تصحيح جميع مشاكل crossorigin -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" as="script" crossorigin="anonymous">
     <link rel="preload" href="assets/js/crypto-core.js" as="script">
-    <link rel="preload" href="assets/js/main.js" as="script">
     
     <!-- Preload مكتبات postprocessing لـ Three.js مع تصحيح مشاكل crossorigin -->
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js" as="script" crossorigin="anonymous">
@@ -984,14 +987,16 @@
     <script src="assets/js/three-scene.js"></script>
     <script src="assets/js/crypto-core.js"></script>
     <script src="assets/js/crypto-military.js"></script>
-    <script src="web-workers.js"></script> <!-- موجود في الجذر كما في الصورة الأولى -->
-    <script src="assets/js/crypto-worker.js"></script> <!-- موجود في assets/js كما في الصورة الثانية -->
+    <script src="assets/js/crypto-worker.js"></script>
     <script src="assets/js/audit-log.js"></script>
     <script src="assets/js/security-audit.js"></script>
     <script src="assets/js/pwa-manager.js"></script>
     <script src="assets/js/ui-manager.js"></script>
     <script src="assets/js/file-processor.js"></script>
     <script src="assets/js/recovery-system.js"></script>
+    
+    <!-- إزالة تحميل web-workers.js من هنا لأن crypto-worker.js يستخدم Workers -->
+    <!-- main.js يتم تحميله في النهاية كمنفذ رئيسي -->
     <script src="assets/js/main.js"></script>
     
     <!-- Service Worker Registration - معدل بشكل آمن مع إصلاح مسار service worker -->
@@ -1021,48 +1026,11 @@
                 })
                 .catch(function(error) {
                     console.warn('ServiceWorker registration failed:', error);
-                    // إنشاء service worker افتراضي إذا لم يكن موجودًا
-                    createFallbackServiceWorker();
+                    // إصلاح: فقط تسجيل الخطأ، وعدم إنشاء fallback قد يتعارض مع الأمان
                 });
             } else {
                 console.log('Service workers are not supported.');
             }
-        }
-        
-        // إنشاء service worker افتراضي في حالة عدم وجود الملف
-        function createFallbackServiceWorker() {
-            const fallbackSW = `
-                self.addEventListener('install', function(event) {
-                    console.log('Fallback Service Worker installing');
-                    self.skipWaiting();
-                });
-                
-                self.addEventListener('activate', function(event) {
-                    console.log('Fallback Service Worker activating');
-                    event.waitUntil(clients.claim());
-                });
-                
-                self.addEventListener('fetch', function(event) {
-                    event.respondWith(
-                        fetch(event.request).catch(function() {
-                            return new Response('Offline - CipherVault Pro', {
-                                headers: {'Content-Type': 'text/html'}
-                            });
-                        })
-                    );
-                });
-            `;
-            
-            const blob = new Blob([fallbackSW], {type: 'application/javascript'});
-            const url = URL.createObjectURL(blob);
-            
-            navigator.serviceWorker.register(url, {scope: './'})
-                .then(function(registration) {
-                    console.log('Fallback Service Worker registered');
-                })
-                .catch(function(error) {
-                    console.error('Fallback Service Worker registration failed:', error);
-                });
         }
         
         // التسجيل بعد تحميل الصفحة
