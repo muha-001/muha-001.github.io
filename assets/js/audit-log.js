@@ -12,11 +12,35 @@ class EnhancedAuditLogger {
         this.retentionDays = 30;
         this.autoExportInterval = 24 * 60 * 60 * 1000; // 24 ساعة
         
-        // إضافة معرف جلسة فريد
-        this.sessionId = this.generateSessionId();
+        // إضافة معرف جلسة فريد - محفوظ عبر الجلسات
+        this.sessionId = this.getOrCreateSessionId();
         
         // تهيئة غير متزامنة
         this.initPromise = this.init();
+    }
+    
+    getOrCreateSessionId() {
+        // محاولة استرداد معرف الجلسة من التخزين المحلي
+        let sessionId = localStorage.getItem('ciphervault_session_id');
+        
+        if (!sessionId) {
+            // إنشاء معرف جلسة جديد
+            sessionId = this.generateSessionId();
+            
+            // تخزينه في localStorage للمستقبل
+            try {
+                localStorage.setItem('ciphervault_session_id', sessionId);
+            } catch (e) {
+                console.warn('Failed to save session ID:', e);
+            }
+        }
+        
+        return sessionId;
+    }
+    
+    generateSessionId() {
+        return `sess_${Date.now()}_${crypto.getRandomValues(new Uint8Array(4))
+            .reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')}`;
     }
     
     async init() {
@@ -43,41 +67,54 @@ class EnhancedAuditLogger {
             console.log('Audit Logger initialized successfully');
         } catch (error) {
             console.error('Audit Logger initialization failed:', error);
-            // الاستمرار بدون تشفير
+            // الاستمرار بدون تشفير مع سجل الخطأ
             this.encryptionKey = null;
+            
+            // تسجيل الخطأ بدون تشفير
+            this.logs.push({
+                id: this.generateLogId(),
+                type: 'INIT_FAILED',
+                severity: 'ERROR',
+                timestamp: Date.now(),
+                timestampISO: new Date().toISOString(),
+                userId: 'system',
+                sessionId: this.sessionId,
+                data: { error: error.message }
+            });
         }
-    }
-    
-    generateSessionId() {
-        return `sess_${Date.now()}_${crypto.getRandomValues(new Uint8Array(4))
-            .reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')}`;
     }
     
     async generateEncryptionKey() {
         try {
-            // استخدام مفتاح مشتق من معرف الجلسة للاستمرارية
-            const keyMaterial = await crypto.subtle.importKey(
-                'raw',
-                new TextEncoder().encode(this.sessionId + '_audit_log_key_2024'),
-                'PBKDF2',
-                false,
-                ['deriveKey']
-            );
+            // استخدام معرف الجلسة كأساس للمفتاح
+            const keyBase = this.sessionId + '_audit_log_key_2024';
             
-            // استخدام salt ثابت (يمكن تخزينه في localStorage للاستمرارية)
+            // استخدام salt ثابت ومخزن للتأكد من نفس المفتاح
             let salt = localStorage.getItem('ciphervault_audit_salt');
             if (!salt) {
+                // إنشاء salt جديد
                 salt = crypto.getRandomValues(new Uint8Array(16));
                 localStorage.setItem('ciphervault_audit_salt', 
                     btoa(String.fromCharCode.apply(null, salt)));
             } else {
+                // تحويل من base64 إلى Uint8Array
                 salt = Uint8Array.from(atob(salt), c => c.charCodeAt(0));
             }
             
+            // استيراد مادة المفتاح
+            const keyMaterial = await crypto.subtle.importKey(
+                'raw',
+                new TextEncoder().encode(keyBase),
+                { name: 'PBKDF2' },
+                false,
+                ['deriveKey']
+            );
+            
+            // اشتقاق المفتاح باستخدام نفس المعلمات دائماً
             this.encryptionKey = await crypto.subtle.deriveKey(
                 {
                     name: 'PBKDF2',
-                    salt,
+                    salt: salt,
                     iterations: 100000,
                     hash: 'SHA-256'
                 },
@@ -87,38 +124,112 @@ class EnhancedAuditLogger {
                 ['encrypt', 'decrypt']
             );
             
+            // التحقق من أن المفتاح صالح للاستخدام
+            const testData = new TextEncoder().encode('test');
+            const testIv = crypto.getRandomValues(new Uint8Array(12));
+            
+            const encrypted = await crypto.subtle.encrypt(
+                {
+                    name: 'AES-GCM',
+                    iv: testIv
+                },
+                this.encryptionKey,
+                testData
+            );
+            
+            const decrypted = await crypto.subtle.decrypt(
+                {
+                    name: 'AES-GCM',
+                    iv: testIv
+                },
+                this.encryptionKey,
+                encrypted
+            );
+            
+            const decoder = new TextDecoder();
+            const result = decoder.decode(decrypted);
+            
+            if (result !== 'test') {
+                throw new Error('Key test failed');
+            }
+            
             this.log('ENCRYPTION_KEY_GENERATED', 'INFO', {
                 algorithm: 'AES-GCM-256',
                 timestamp: Date.now(),
-                sessionId: this.sessionId
+                sessionId: this.sessionId,
+                keyValid: true
             });
+            
         } catch (error) {
             console.warn('Failed to generate encryption key, using unencrypted logs:', error);
             this.encryptionKey = null;
+            
+            this.log('ENCRYPTION_KEY_FAILED', 'WARNING', {
+                error: error.message,
+                sessionId: this.sessionId,
+                fallback: 'unencrypted'
+            });
         }
     }
     
     async loadSavedLogs() {
         try {
             const saved = localStorage.getItem('ciphervault_audit_logs');
-            if (saved) {
+            if (!saved) {
+                this.log('NO_SAVED_LOGS', 'INFO', {
+                    message: 'No previous logs found'
+                });
+                return;
+            }
+            
+            const parsed = JSON.parse(saved);
+            
+            // تحقق مما إذا كانت البيانات مشفرة
+            if (parsed.unencrypted) {
+                // بيانات غير مشفرة
+                this.logs = Array.isArray(parsed.data) ? parsed.data.slice(-this.maxLogs) : [];
+                this.log('LOGS_LOADED_UNENCRYPTED', 'INFO', {
+                    count: this.logs.length,
+                    source: 'localStorage'
+                });
+                return;
+            }
+            
+            // محاولة فك التشفير
+            try {
                 const decrypted = await this.decryptLogs(saved);
                 this.logs = decrypted.slice(-this.maxLogs);
                 
                 this.log('LOGS_LOADED', 'INFO', {
                     count: this.logs.length,
                     source: 'localStorage',
+                    encrypted: true,
                     sessionId: this.sessionId
                 });
-            } else {
-                this.log('NO_SAVED_LOGS', 'INFO', {
-                    message: 'No previous logs found'
-                });
+            } catch (decryptionError) {
+                console.warn('Failed to decrypt logs, attempting recovery:', decryptionError);
+                
+                // محاولة استرداد البيانات من الهيكل المباشر
+                if (parsed.data && Array.isArray(parsed.data)) {
+                    this.logs = parsed.data.slice(-this.maxLogs);
+                    this.log('LOGS_RECOVERED_UNENCRYPTED', 'WARNING', {
+                        count: this.logs.length,
+                        error: decryptionError.message
+                    });
+                } else {
+                    // بدء بسجل جديد
+                    this.logs = [];
+                    this.log('LOGS_LOAD_FAILED', 'ERROR', {
+                        error: decryptionError.message,
+                        sessionId: this.sessionId
+                    });
+                }
             }
+            
         } catch (error) {
             console.warn('Failed to load saved logs, starting fresh:', error);
             this.logs = [];
-            this.log('LOGS_LOAD_FAILED', 'WARNING', {
+            this.log('LOGS_LOAD_FAILED', 'ERROR', {
                 error: error.message,
                 sessionId: this.sessionId
             });
@@ -138,6 +249,7 @@ class EnhancedAuditLogger {
                 this.log('LOGS_SAVED', 'DEBUG', {
                     count: logsToSave.length,
                     size: encrypted.length,
+                    encrypted: !!this.encryptionKey,
                     sessionId: this.sessionId
                 });
             }
@@ -157,7 +269,9 @@ class EnhancedAuditLogger {
             return JSON.stringify({
                 unencrypted: true,
                 data: logs,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                sessionId: this.sessionId,
+                version: '1.0'
             });
         }
         
@@ -187,7 +301,8 @@ class EnhancedAuditLogger {
             const encrypted = await crypto.subtle.encrypt(
                 {
                     name: 'AES-GCM',
-                    iv: iv
+                    iv: iv,
+                    tagLength: 128
                 },
                 this.encryptionKey,
                 dataToEncrypt
@@ -199,7 +314,8 @@ class EnhancedAuditLogger {
                 compressed: compressed,
                 timestamp: Date.now(),
                 version: '1.1',
-                sessionId: this.sessionId
+                sessionId: this.sessionId,
+                algorithm: 'AES-GCM-256'
             };
             
             return JSON.stringify(result);
@@ -215,7 +331,9 @@ class EnhancedAuditLogger {
                 unencrypted: true,
                 data: logs,
                 timestamp: Date.now(),
-                error: error.message
+                sessionId: this.sessionId,
+                error: error.message,
+                version: '1.0'
             });
         }
     }
@@ -229,28 +347,36 @@ class EnhancedAuditLogger {
                 return Array.isArray(parsed.data) ? parsed.data : [];
             }
             
-            // إذا لم يكن هناك مفتاح تشفير، ارجع مصفوفة فارغة
+            // إذا لم يكن هناك مفتاح تشفير، حاول استرداد البيانات بدون تشفير
             if (!this.encryptionKey) {
                 console.warn('No encryption key available for decryption');
-                this.log('NO_ENCRYPTION_KEY', 'WARNING', {
-                    message: 'Cannot decrypt logs without encryption key'
-                });
+                
+                // إذا كان هناك بيانات مباشرة في الهيكل (لسجلات قديمة)
+                if (parsed.data && Array.isArray(parsed.data)) {
+                    return parsed.data;
+                }
+                
                 return [];
             }
             
-            // التحقق من بنية البيانات المشفرة
-            if (!parsed.iv || !parsed.data) {
-                console.warn('Invalid encrypted data structure');
-                return [];
+            // التحقق من وجود جميع الحقول المطلوبة
+            if (!parsed.iv || !parsed.data || !Array.isArray(parsed.iv) || !Array.isArray(parsed.data)) {
+                throw new Error('Invalid encrypted data structure');
             }
             
             const iv = new Uint8Array(parsed.iv);
             const encrypted = new Uint8Array(parsed.data);
             
+            // التحقق من صحة طول IV (12 بايت لـ AES-GCM)
+            if (iv.length !== 12) {
+                throw new Error(`Invalid IV length: ${iv.length}, expected 12`);
+            }
+            
             const decrypted = await crypto.subtle.decrypt(
                 {
                     name: 'AES-GCM',
-                    iv: iv
+                    iv: iv,
+                    tagLength: 128
                 },
                 this.encryptionKey,
                 encrypted
@@ -278,27 +404,39 @@ class EnhancedAuditLogger {
             
             // التحقق من أن النتيجة هي مصفوفة
             if (!Array.isArray(result)) {
-                console.warn('Decrypted data is not an array');
-                return [];
+                throw new Error('Decrypted data is not an array');
             }
             
             return result;
+            
         } catch (error) {
             console.error('Log decryption failed:', error);
             this.log('DECRYPTION_FAILED', 'ERROR', {
                 error: error.message,
+                errorType: error.constructor.name,
                 timestamp: Date.now(),
-                sessionId: this.sessionId
+                sessionId: this.sessionId,
+                encryptedDataLength: encryptedData ? encryptedData.length : 0
             });
             
-            // محاولة استرجاع البيانات بدون تشفير إذا أمكن
+            // محاولة استرداد البيانات بدون تشفير إذا أمكن
             try {
                 const parsed = JSON.parse(encryptedData);
-                if (parsed.unencrypted && Array.isArray(parsed.data)) {
+                
+                // إذا كان هناك بيانات مباشرة في الهيكل
+                if (parsed.data && Array.isArray(parsed.data)) {
+                    console.warn('Recovered unencrypted data from structure');
                     return parsed.data;
                 }
-            } catch (e) {
-                // لا يمكن استرجاع أي شيء
+                
+                // إذا كان هناك سجلات مباشرة في الجذر
+                if (Array.isArray(parsed)) {
+                    console.warn('Recovered array data directly');
+                    return parsed;
+                }
+                
+            } catch (recoveryError) {
+                console.error('Recovery also failed:', recoveryError);
             }
             
             return [];
@@ -323,7 +461,11 @@ class EnhancedAuditLogger {
         
         // الحفاظ على الحد الأقصى للسجلات
         if (this.logs.length > this.maxLogs) {
-            this.logs.shift();
+            const removed = this.logs.shift();
+            this.log('LOG_TRUNCATED', 'DEBUG', {
+                removedId: removed.id,
+                remainingCount: this.logs.length
+            });
         }
         
         // حفظ السجلات بشكل غير متزامن
@@ -339,38 +481,28 @@ class EnhancedAuditLogger {
                              window.location.port === '3000' ||
                              (window._ENV && window._ENV.NODE_ENV === 'development');
         
-        if (isDevelopment && severity.toUpperCase() === 'ERROR') {
-            console.error(`[Audit] ${type}:`, data);
-        } else if (isDevelopment && severity.toUpperCase() === 'WARNING') {
-            console.warn(`[Audit] ${type}:`, data);
-        } else if (isDevelopment) {
-            console.log(`[Audit] ${severity}: ${type}`, data);
+        if (isDevelopment) {
+            const consoleMethod = severity.toUpperCase() === 'ERROR' ? console.error :
+                                 severity.toUpperCase() === 'WARNING' ? console.warn :
+                                 console.log;
+            consoleMethod(`[Audit] ${severity}: ${type}`, data);
         }
         
         return logEntry;
     }
     
     generateLogId() {
-        return `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${crypto.getRandomValues(new Uint8Array(2))
-            .reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')}`;
+        return `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
     
     getClientIP() {
         // في بيئة المتصفح، لا يمكننا الحصول على IP الحقيقي بدون خادم
-        // نستخدم WebRTC كحل بدائي (للاستخدام المحلي فقط)
+        // نرجع قيمة افتراضية للاستخدام المحلي
         try {
-            if (typeof RTCPeerConnection !== 'undefined') {
-                const pc = new RTCPeerConnection({ iceServers: [] });
-                pc.createDataChannel('');
-                pc.createOffer().then(offer => pc.setLocalDescription(offer));
-                
-                return 'client-side-detected';
-            }
+            return 'client-' + navigator.userAgent.substring(0, 20).replace(/[^a-z0-9]/gi, '-');
         } catch (e) {
-            // تجاهل الأخطاء
+            return 'unknown-ip';
         }
-        
-        return 'unknown-ip';
     }
     
     sanitizeData(data) {
@@ -411,7 +543,7 @@ class EnhancedAuditLogger {
     
     startAutoExport() {
         // بدء التصدير التلقائي بعد التأكد من التهيئة
-        setTimeout(() => {
+        this.initPromise.then(() => {
             this.exportInterval = setInterval(async () => {
                 try {
                     await this.exportLogs('auto-backup');
@@ -419,16 +551,23 @@ class EnhancedAuditLogger {
                     console.warn('Auto-export failed:', error);
                 }
             }, this.autoExportInterval);
-        }, 60000); // انتظر دقيقة قبل البدء
+        }).catch(() => {
+            console.warn('Auto-export delayed due to initialization failure');
+        });
     }
     
     startAutoCleanup() {
         // بدء التنظيف التلقائي بعد التأكد من التهيئة
-        setTimeout(() => {
+        this.initPromise.then(() => {
             this.cleanupInterval = setInterval(() => {
                 this.cleanupOldLogs();
             }, 60 * 60 * 1000); // كل ساعة
-        }, 30000); // انتظر 30 ثانية قبل البدء
+            
+            // تنظيف أولي
+            setTimeout(() => this.cleanupOldLogs(), 5000);
+        }).catch(() => {
+            console.warn('Auto-cleanup delayed due to initialization failure');
+        });
     }
     
     cleanupOldLogs() {
@@ -436,12 +575,22 @@ class EnhancedAuditLogger {
             const cutoffDate = Date.now() - (this.retentionDays * 24 * 60 * 60 * 1000);
             const initialCount = this.logs.length;
             
-            this.logs = this.logs.filter(log => log.timestamp > cutoffDate);
+            const newLogs = [];
+            const removedLogs = [];
             
-            const removedCount = initialCount - this.logs.length;
-            if (removedCount > 0) {
+            this.logs.forEach(log => {
+                if (log.timestamp > cutoffDate) {
+                    newLogs.push(log);
+                } else {
+                    removedLogs.push(log.id);
+                }
+            });
+            
+            if (removedLogs.length > 0) {
+                this.logs = newLogs;
+                
                 this.log('LOGS_CLEANUP', 'INFO', {
-                    removedCount,
+                    removedCount: removedLogs.length,
                     retentionDays: this.retentionDays,
                     remainingCount: this.logs.length,
                     sessionId: this.sessionId
@@ -457,9 +606,7 @@ class EnhancedAuditLogger {
     async exportLogs(reason = 'manual') {
         try {
             // انتظار تهيئة النظام إذا لزم
-            if (this.initPromise) {
-                await this.initPromise;
-            }
+            await this.initPromise;
             
             const exportData = {
                 metadata: {
@@ -468,7 +615,11 @@ class EnhancedAuditLogger {
                     version: '4.2.1',
                     totalLogs: this.logs.length,
                     sessionId: this.sessionId,
-                    retentionDays: this.retentionDays
+                    retentionDays: this.retentionDays,
+                    system: {
+                        userAgent: navigator.userAgent,
+                        timestamp: Date.now()
+                    }
                 },
                 logs: this.logs
             };
@@ -499,7 +650,12 @@ class EnhancedAuditLogger {
                 sessionId: this.sessionId
             });
             
-            return true;
+            return {
+                success: true,
+                filename,
+                count: this.logs.length
+            };
+            
         } catch (error) {
             console.error('Failed to export logs:', error);
             this.log('LOG_EXPORT_FAILED', 'ERROR', {
@@ -508,18 +664,23 @@ class EnhancedAuditLogger {
                 sessionId: this.sessionId
             });
             
-            return false;
+            return {
+                success: false,
+                error: error.message
+            };
         }
     }
     
     searchLogs(query, filters = {}) {
         // انتظار تهيئة النظام إذا لزم
-        if (!this.logs) {
+        if (!this.logs || this.logs.length === 0) {
             return {
                 query,
                 filters,
                 totalResults: 0,
-                results: []
+                results: [],
+                page: 1,
+                totalPages: 0
             };
         }
         
@@ -528,7 +689,7 @@ class EnhancedAuditLogger {
         // تطبيق الفلاتر
         if (filters.severity && filters.severity.length > 0) {
             results = results.filter(log => 
-                filters.severity.includes(log.severity.toUpperCase())
+                filters.severity.map(s => s.toUpperCase()).includes(log.severity.toUpperCase())
             );
         }
         
@@ -540,12 +701,16 @@ class EnhancedAuditLogger {
         
         if (filters.startDate) {
             const startTimestamp = new Date(filters.startDate).getTime();
-            results = results.filter(log => log.timestamp >= startTimestamp);
+            if (!isNaN(startTimestamp)) {
+                results = results.filter(log => log.timestamp >= startTimestamp);
+            }
         }
         
         if (filters.endDate) {
             const endTimestamp = new Date(filters.endDate).getTime();
-            results = results.filter(log => log.timestamp <= endTimestamp);
+            if (!isNaN(endTimestamp)) {
+                results = results.filter(log => log.timestamp <= endTimestamp);
+            }
         }
         
         if (filters.userId) {
@@ -565,9 +730,9 @@ class EnhancedAuditLogger {
             const searchTerm = query.toLowerCase();
             results = results.filter(log => {
                 return (
-                    log.type.toLowerCase().includes(searchTerm) ||
-                    log.severity.toLowerCase().includes(searchTerm) ||
-                    log.userId.toLowerCase().includes(searchTerm) ||
+                    (log.type && log.type.toLowerCase().includes(searchTerm)) ||
+                    (log.severity && log.severity.toLowerCase().includes(searchTerm)) ||
+                    (log.userId && log.userId.toLowerCase().includes(searchTerm)) ||
                     (log.data && JSON.stringify(log.data).toLowerCase().includes(searchTerm))
                 );
             });
@@ -576,16 +741,19 @@ class EnhancedAuditLogger {
         // الفرز حسب التاريخ (الأحدث أولاً)
         results.sort((a, b) => b.timestamp - a.timestamp);
         
-        // تطبيق الحد
-        const limit = filters.limit || 100;
-        const paginatedResults = results.slice(0, limit);
+        // تطبيق التجزئة
+        const limit = filters.limit && filters.limit > 0 ? filters.limit : 100;
+        const page = filters.page && filters.page > 0 ? filters.page : 1;
+        const offset = (page - 1) * limit;
+        const paginatedResults = results.slice(offset, offset + limit);
         
         return {
             query,
             filters,
             totalResults: results.length,
             results: paginatedResults,
-            page: filters.page || 1,
+            page,
+            limit,
             totalPages: Math.ceil(results.length / limit)
         };
     }
@@ -598,7 +766,7 @@ class EnhancedAuditLogger {
                 totalLogs: 0,
                 bySeverity: {},
                 byType: {},
-                byHour: {},
+                byHour: Array.from({ length: 24 }, (_, i) => ({ hour: i, count: 0 })),
                 byDay: {},
                 trends: []
             };
@@ -624,6 +792,11 @@ class EnhancedAuditLogger {
                     log.timestamp > now - (30 * 24 * 60 * 60 * 1000)
                 );
                 break;
+            case 'year':
+                timeFilteredLogs = this.logs.filter(log => 
+                    log.timestamp > now - (365 * 24 * 60 * 60 * 1000)
+                );
+                break;
         }
         
         const stats = {
@@ -638,7 +811,7 @@ class EnhancedAuditLogger {
         
         // إحصائيات حسب الشدة
         timeFilteredLogs.forEach(log => {
-            const severity = log.severity.toUpperCase();
+            const severity = log.severity ? log.severity.toUpperCase() : 'UNKNOWN';
             stats.bySeverity[severity] = (stats.bySeverity[severity] || 0) + 1;
         });
         
@@ -674,18 +847,20 @@ class EnhancedAuditLogger {
                 date,
                 count: dateLogs.length,
                 critical: dateLogs.filter(log => log.severity === 'CRITICAL').length,
-                errors: dateLogs.filter(log => log.severity === 'ERROR').length
+                errors: dateLogs.filter(log => log.severity === 'ERROR').length,
+                warnings: dateLogs.filter(log => log.severity === 'WARNING').length
             });
         });
         
         return stats;
     }
     
-    // باقي الدوال تبقى كما هي مع تعديلات طفيفة للتعامل مع الأخطاء
-    
     clearLogs(confirm = true) {
-        if (confirm && !window.confirm('Are you sure you want to clear all audit logs? This action cannot be undone.')) {
-            return false;
+        if (confirm && !window.confirm('هل أنت متأكد أنك تريد مسح جميع سجلات التدقيق؟ هذا الإجراء لا يمكن التراجع عنه.')) {
+            return {
+                success: false,
+                message: 'Cancelled by user'
+            };
         }
         
         const count = this.logs.length;
@@ -693,7 +868,6 @@ class EnhancedAuditLogger {
         
         try {
             localStorage.removeItem('ciphervault_audit_logs');
-            localStorage.removeItem('ciphervault_audit_salt');
         } catch (e) {
             console.warn('Failed to clear localStorage:', e);
         }
@@ -705,16 +879,21 @@ class EnhancedAuditLogger {
             sessionId: this.sessionId
         });
         
-        return count;
+        return {
+            success: true,
+            clearedCount: count
+        };
     }
     
     destroy() {
         // تنظيف الفواصل الزمنية
         if (this.exportInterval) {
             clearInterval(this.exportInterval);
+            this.exportInterval = null;
         }
         if (this.cleanupInterval) {
             clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
         }
         
         // حفظ السجلات النهائي
@@ -731,19 +910,49 @@ class EnhancedAuditLogger {
 let AuditLogger;
 try {
     AuditLogger = new EnhancedAuditLogger();
+    
+    // تأخير تسجيل بدء التشغيل للتأكد من التهيئة
+    setTimeout(() => {
+        if (AuditLogger.logs.length === 0) {
+            AuditLogger.log('SYSTEM_STARTED', 'INFO', {
+                version: '4.2.1',
+                timestamp: Date.now()
+            });
+        }
+    }, 1000);
+    
 } catch (error) {
     console.error('Failed to create Audit Logger:', error);
+    
     // إنشاء نسخة بديلة بدون تشفير
     AuditLogger = {
         logs: [],
+        sessionId: 'fallback-' + Date.now(),
         log: function(type, severity, data, userId = 'system') {
+            const entry = { 
+                id: Date.now().toString(), 
+                type, 
+                severity, 
+                timestamp: Date.now(),
+                userId,
+                data 
+            };
+            this.logs.push(entry);
             console.log(`[Audit Fallback] ${severity}: ${type}`, data);
-            return { id: Date.now().toString(), type, severity, timestamp: Date.now() };
+            return entry;
         },
-        exportLogs: async function() { return false; },
-        searchLogs: function() { return { totalResults: 0, results: [] }; },
-        getStatistics: function() { return { totalLogs: 0 }; },
-        clearLogs: function() { return 0; },
+        exportLogs: async function() { 
+            return { success: false, error: 'Fallback mode' }; 
+        },
+        searchLogs: function() { 
+            return { totalResults: 0, results: [] }; 
+        },
+        getStatistics: function() { 
+            return { totalLogs: 0 }; 
+        },
+        clearLogs: function() { 
+            return { success: false, clearedCount: 0 }; 
+        },
         destroy: function() {}
     };
 }
@@ -765,7 +974,25 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', () => {
         if (AuditLogger && typeof AuditLogger.destroy === 'function') {
-            AuditLogger.destroy();
+            try {
+                AuditLogger.destroy();
+            } catch (e) {
+                console.error('Error during cleanup:', e);
+            }
         }
     });
+    
+    // تسجيل حدث تحميل الصفحة
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            if (AuditLogger && typeof AuditLogger.log === 'function') {
+                AuditLogger.log('PAGE_LOADED', 'INFO', {
+                    url: window.location.href,
+                    loadTime: Date.now() - window.performance.timing.navigationStart
+                });
+            }
+        }, 100);
+    });
 }
+
+console.log('Enhanced Audit Logger loaded (Version 4.2.1 - Fixed)');
