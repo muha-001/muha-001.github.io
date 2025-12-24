@@ -1,7 +1,7 @@
-/**
+/*!
  * CipherVault 3D Pro - Main Application File
- * Version: 4.2.0 - Enhanced & Fixed
- * 
+ * Version: 4.3.0 - Enhanced & Fixed for Local Files & r182 Compatibility
+ *
  * This file initializes and orchestrates all components of the CipherVault application.
  * It serves as the main entry point for the encryption/decryption system.
  */
@@ -12,2088 +12,1047 @@
 
 // تعريف PerformanceMonitor أولاً لمنع تكرار التعريف
 if (typeof PerformanceMonitor === 'undefined') {
-    class PerformanceMonitor {
-        constructor() {
-            this.metrics = {
-                memory: [],
-                fps: [],
-                loadTime: performance.now()
-            };
-        }
-        
-        trackMemory() {
-            if (performance.memory) {
-                this.metrics.memory.push(performance.memory.usedJSHeapSize);
-            }
-        }
-        
-        trackFPS(fps) {
-            this.metrics.fps.push(fps);
-        }
-        
-        getAverageFPS() {
-            if (this.metrics.fps.length === 0) return 0;
-            return this.metrics.fps.reduce((a, b) => a + b) / this.metrics.fps.length;
-        }
-        
-        getMemoryUsage() {
-            if (this.metrics.memory.length === 0) return 0;
-            return Math.max(...this.metrics.memory) / (1024 * 1024); // MB
-        }
-    }
-    
-    // جعل PerformanceMonitor متاحًا عالميًا للاستخدام
-    window.PerformanceMonitor = PerformanceMonitor;
+class PerformanceMonitor {
+constructor() {
+this.metrics = {
+memory: [],
+cpu: [],
+fps: [],
+timestamp: []
+};
+this.isMonitoring = false;
+this.monitorInterval = null;
 }
 
+startMonitoring() {
+if (this.isMonitoring) return;
+this.isMonitoring = true;
+this.monitorInterval = setInterval(() => {
+const memory = performance.memory ? {
+used: performance.memory.usedJSHeapSize,
+total: performance.memory.totalJSHeapSize,
+usage: performance.memory.usedJSHeapSize / performance.memory.totalJSHeapSize
+} : null;
+
+const cpu = performance.now(); // Simplified CPU estimation
+
+this.metrics.memory.push(memory);
+this.metrics.cpu.push(cpu);
+this.metrics.timestamp.push(Date.now());
+
+// Keep last 100 measurements
+if (this.metrics.memory.length > 100) {
+this.metrics.memory.shift();
+this.metrics.cpu.shift();
+this.metrics.timestamp.shift();
+}
+}, 1000);
+}
+
+stopMonitoring() {
+this.isMonitoring = false;
+if (this.monitorInterval) {
+clearInterval(this.monitorInterval);
+this.monitorInterval = null;
+}
+}
+
+getMetrics() {
+return {
+memory: this.metrics.memory[this.metrics.memory.length - 1],
+cpu: this.metrics.cpu[this.metrics.cpu.length - 1],
+timestamp: this.metrics.timestamp[this.metrics.timestamp.length - 1]
+};
+}
+}
+}
+
+// ============================================================================
+// MAIN APPLICATION CLASS
+// ============================================================================
+
 class CipherVaultApp {
-    constructor() {
-        // Application state
-        this.state = {
-            initialized: false,
-            language: 'en',
-            securityLevel: 'MEDIUM',
-            darkMode: false,
-            currentOperation: null,
-            fileProcessing: false,
-            activeWorkers: 0,
-            sessionStart: Date.now(),
-            
-            // Encryption state
-            encryption: {
-                file: null,
-                password: '',
-                options: {},
-                progress: 0,
-                startTime: null
-            },
-            
-            // Decryption state
-            decryption: {
-                file: null,
-                password: '',
-                progress: 0,
-                startTime: null
-            },
-            
-            // Statistics
-            statistics: {
-                filesEncrypted: 0,
-                filesDecrypted: 0,
-                totalDataProcessed: 0,
-                totalTimeSpent: 0,
-                averageSpeed: 0
-            },
-            
-            // Security state
-            security: {
-                https: window.isSecureContext,
-                cryptoAvailable: false,
-                workersAvailable: false,
-                memoryAvailable: navigator.deviceMemory || 0,
-                cpuCores: navigator.hardwareConcurrency || 1
-            }
-        };
-        
-        // Components
-        this.components = {
-            crypto: null,
-            militaryCrypto: null,
-            translation: null,
-            threejs: null,
-            audit: null,
-            pwa: null,
-            workers: null
-        };
-        
-        // UI References
-        this.ui = {
-            elements: {},
-            listeners: {}
-        };
-        
-        // Event system
-        this.events = new EventTarget();
-        
-        // Initialize performance monitoring
-        this.performance = new PerformanceMonitor();
-        
-        console.log('CipherVault App initialized');
-    }
-    
-    // ============================================================================
-    // INITIALIZATION
-    // ============================================================================
-    
-    /**
-     * Initialize the application
-     */
-    async init() {
-        console.log('Starting CipherVault initialization...');
-        
-        try {
-            // Step 1: Check system requirements
-            await this.checkRequirements();
-            
-            // Step 2: Initialize subsystems
-            await this.initSubsystems();
-            
-            // Step 3: Setup UI
-            await this.setupUI();
-            
-            // Step 4: Setup event listeners
-            await this.setupEventListeners();
-            
-            // Step 5: Load saved state
-            await this.loadSavedState();
-            
-            // Step 6: Finalize initialization
-            await this.finalizeInit();
-            
-            console.log('CipherVault initialization complete');
-            return true;
-            
-        } catch (error) {
-            console.error('Initialization failed:', error);
-            this.showFatalError('Failed to initialize application. Please refresh the page.');
-            return false;
-        }
-    }
-    
-    /**
-     * Check system requirements
-     */
-    async checkRequirements() {
-        console.log('Checking system requirements...');
-        
-        const requirements = {
-            // Web Crypto API
-            crypto: () => {
-                const available = window.crypto && window.crypto.subtle;
-                if (!available) {
-                    throw new Error('Web Crypto API is not available. This browser may not support encryption.');
-                }
-                this.state.security.cryptoAvailable = true;
-                return available;
-            },
-            
-            // HTTPS/secure context
-            https: () => {
-                const secure = window.isSecureContext;
-                if (!secure) {
-                    console.warn('Not running in secure context. Some features may be limited.');
-                }
-                this.state.security.https = secure;
-                return true; // Not fatal, just warning
-            },
-            
-            // Modern browser features
-            modernBrowser: () => {
-                const required = [
-                    'Promise',
-                    'Uint8Array',
-                    'TextEncoder',
-                    'TextDecoder',
-                    'Blob',
-                    'File',
-                    'FileReader'
-                ];
-                
-                for (const feature of required) {
-                    if (!window[feature]) {
-                        throw new Error(`Required feature ${feature} is not available. Please use a modern browser.`);
-                    }
-                }
-                
-                // Check if browser supports async/await (all modern browsers do)
-                try {
-                    // Test async function support
-                    eval('(async () => {})');
-                    // Test arrow function support
-                    eval('(() => {})');
-                } catch (error) {
-                    throw new Error('Browser does not support modern JavaScript features (async/await). Please use a modern browser.');
-                }
-                
-                return true;
-            },
-            
-            // File API
-            fileApi: () => {
-                // Already checked in modernBrowser check
-                return true;
-            }
-        };
-        
-        // Run all requirement checks
-        for (const [name, check] of Object.entries(requirements)) {
-            try {
-                await check();
-                console.log(`✓ ${name} check passed`);
-            } catch (error) {
-                console.error(`✗ ${name} check failed:`, error.message);
-                if (name === 'crypto' || name === 'modernBrowser') {
-                    throw error; // Fatal errors
-                }
-            }
-        }
-    }
-    
-    /**
-     * Initialize subsystems
-     */
-    async initSubsystems() {
-        console.log('Initializing subsystems...');
-        
-        // Initialize Translation System
-        if (window.TranslationManager) {
-            this.components.translation = window.TranslationManager;
-            console.log('✓ Translation system initialized');
-        }
-        
-        // Initialize Crypto Systems
-        if (window.CryptoEngine) {
-            this.components.crypto = window.CryptoEngine;
-            
-            // Test crypto functionality
-            const testResult = await this.components.crypto.selfTest();
-            if (testResult.passed) {
-                console.log('✓ Core crypto system initialized and tested');
-            } else {
-                console.warn('Crypto self-test had issues:', testResult);
-            }
-        }
-        
-        if (window.MilitaryCryptoEngine) {
-            this.components.militaryCrypto = window.MilitaryCryptoEngine;
-            console.log('✓ Military crypto system initialized');
-        }
-        
-        // Initialize Three.js Scene - مع معالجة أفضل للأخطاء
-        if (typeof initThreeJS === 'function') {
-            try {
-                initThreeJS();
-                this.components.threejs = {
-                    scene: window.scene,
-                    camera: window.camera,
-                    renderer: window.renderer
-                };
-                console.log('✓ Three.js scene initialized');
-            } catch (error) {
-                console.warn('Three.js initialization failed:', error);
-                // استمر حتى لو فشلت Three.js، فهي ليست أساسية للتشفير
-                this.showStatus('warning', 'threejs_warning', '3D effects initialization failed. Encryption/Decryption will still work.');
-            }
-        }
-        
-        // Initialize PWA Manager - مع إصلاح تسجيل المشاكل
-        if (window.PWAManager) {
-            try {
-                this.components.pwa = window.PWAManager;
-                await this.components.pwa.init();
-                console.log('✓ PWA manager initialized');
-            } catch (error) {
-                console.warn('PWA manager initialization failed:', error);
-                // استمر دون PWA، فهي ليست أساسية
-            }
-        }
-        
-        // Initialize Audit System
-        if (window.SecurityAudit) {
-            this.components.audit = window.SecurityAudit;
-            await this.components.audit.init();
-            console.log('✓ Security audit system initialized');
-        }
-        
-        // Initialize Web Workers - مع التحقق من وجود الملف
-        if (window.CryptoWorkerManager) {
-            try {
-                this.components.workers = new window.CryptoWorkerManager();
-                this.state.security.workersAvailable = true;
-                console.log('✓ Web Workers manager initialized');
-            } catch (error) {
-                console.warn('Web Workers initialization failed:', error);
-                // استمر بدون Workers
-            }
-        }
-    }
-    
-    /**
-     * Setup UI elements and references
-     */
-    async setupUI() {
-        console.log('Setting up UI...');
-        
-        // Collect UI element references
-        this.ui.elements = {
-            // Language selector
-            languageSelector: document.querySelector('.language-selector-3d'),
-            langOptions: document.querySelectorAll('.lang-option'),
-            
-            // Encryption card
-            encryptCard: document.querySelector('.encrypt-card'),
-            encryptUpload: document.getElementById('encryptUpload'),
-            fileInputEncrypt: document.getElementById('fileInputEncrypt'),
-            encryptFileInfo: document.getElementById('encryptFileInfo'),
-            encryptFileName: document.getElementById('encryptFileName'),
-            encryptFileSize: document.getElementById('encryptFileSize'),
-            passwordEncrypt: document.getElementById('passwordEncrypt'),
-            passwordStrengthEncrypt: document.getElementById('passwordStrengthEncrypt'),
-            passwordConfirm: document.getElementById('passwordConfirm'),
-            passwordMatchIndicator: document.getElementById('passwordMatchIndicator'),
-            compressOption: document.getElementById('compressOption'),
-            splitOption: document.getElementById('splitOption'),
-            encryptBtn: document.getElementById('encryptBtn'),
-            encryptProgress: document.getElementById('encryptProgress'),
-            encryptProgressPercent: document.getElementById('encryptProgressPercent'),
-            encryptProgressStatus: document.getElementById('encryptProgressStatus'),
-            
-            // Decryption card
-            decryptCard: document.querySelector('.decrypt-card'),
-            decryptUpload: document.getElementById('decryptUpload'),
-            fileInputDecrypt: document.getElementById('fileInputDecrypt'),
-            decryptFileInfo: document.getElementById('decryptFileInfo'),
-            decryptFileName: document.getElementById('decryptFileName'),
-            decryptFileSize: document.getElementById('decryptFileSize'),
-            passwordDecrypt: document.getElementById('passwordDecrypt'),
-            decryptBtn: document.getElementById('decryptBtn'),
-            decryptProgress: document.getElementById('decryptProgress'),
-            decryptProgressPercent: document.getElementById('decryptProgressPercent'),
-            decryptProgressStatus: document.getElementById('decryptProgressStatus'),
-            
-            // Advanced settings
-            advancedSettingsPanel: document.getElementById('advancedSettingsPanel'),
-            toggleAdvanced: document.getElementById('toggleAdvanced'),
-            closeAdvancedSettings: document.getElementById('closeAdvancedSettings'),
-            
-            // Security settings
-            securityLevelOptions: document.querySelectorAll('input[name="securityLevel"]'),
-            useWorkers: document.getElementById('useWorkers'),
-            enableCompression: document.getElementById('enableCompression'),
-            enableWipe: document.getElementById('enableWipe'),
-            autoClear: document.getElementById('autoClear'),
-            
-            // Status messages
-            statusContainer: document.getElementById('status-container'),
-            successStatus: document.getElementById('success-status'),
-            errorStatus: document.getElementById('error-status'),
-            warningStatus: document.getElementById('warning-status'),
-            infoStatus: document.getElementById('info-status'),
-            successText: document.getElementById('success-text'),
-            errorText: document.getElementById('error-text'),
-            warningText: document.getElementById('warning-text'),
-            infoText: document.getElementById('info-text'),
-            
-            // Statistics
-            filesProcessed: document.getElementById('filesProcessed'),
-            dataEncrypted: document.getElementById('dataEncrypted'),
-            encryptionSpeed: document.getElementById('encryptionSpeed'),
-            securityLevelValue: document.getElementById('securityLevelValue'),
-            
-            // Security indicators
-            securityHttps: document.getElementById('securityHttps'),
-            securityCrypto: document.getElementById('securityCrypto'),
-            securityWorkers: document.getElementById('securityWorkers'),
-            securityStorage: document.getElementById('securityStorage'),
-            
-            // Recovery system
-            recoveryPanel: document.getElementById('recoveryPanel'),
-            closeRecovery: document.getElementById('closeRecovery'),
-            
-            // PWA
-            pwaInstallPrompt: document.getElementById('pwaInstallPrompt'),
-            installPWA: document.getElementById('installPWA'),
-            dismissPWA: document.getElementById('dismissPWA'),
-            
-            // Dark mode
-            toggleDarkMode: document.getElementById('toggleDarkMode'),
-            
-            // Footer
-            connectionStatus: document.getElementById('connectionStatus'),
-            connectionIcon: document.getElementById('connectionIcon'),
-            auditStatus: document.getElementById('auditStatus')
-        };
-        
-        // Initialize Vanilla Tilt for 3D cards
-        if (typeof VanillaTilt !== 'undefined') {
-            try {
-                VanillaTilt.init(document.querySelectorAll('.card-3d'), {
-                    max: 15,
-                    speed: 400,
-                    glare: true,
-                    "max-glare": 0.2,
-                    scale: 1.02
-                });
-                console.log('✓ 3D card effects initialized');
-            } catch (error) {
-                console.warn('VanillaTilt initialization failed:', error);
-            }
-        }
-        
-        // Setup password strength indicators
-        this.setupPasswordStrength();
-        
-        // Setup drag and drop
-        this.setupDragAndDrop();
-        
-        // Update UI state
-        this.updateUIState();
-        
-        console.log('✓ UI setup complete');
-    }
-    
-    /**
-     * Setup event listeners
-     */
-    async setupEventListeners() {
-        console.log('Setting up event listeners...');
-        
-        // Language selection
-        this.ui.elements.langOptions.forEach(option => {
-            this.addListener(option, 'click', () => {
-                const lang = option.dataset.lang;
-                this.setLanguage(lang);
-            });
-        });
-        
-        // File upload triggers
-        this.addListener(this.ui.elements.encryptUpload, 'click', () => {
-            this.ui.elements.fileInputEncrypt.click();
-        });
-        
-        this.addListener(this.ui.elements.decryptUpload, 'click', () => {
-            this.ui.elements.fileInputDecrypt.click();
-        });
-        
-        // File input changes
-        this.addListener(this.ui.elements.fileInputEncrypt, 'change', (e) => {
-            this.handleFileSelect('encrypt', e.target.files[0]);
-        });
-        
-        this.addListener(this.ui.elements.fileInputDecrypt, 'change', (e) => {
-            this.handleFileSelect('decrypt', e.target.files[0]);
-        });
-        
-        // Password strength checking
-        this.addListener(this.ui.elements.passwordEncrypt, 'input', (e) => {
-            this.checkPasswordStrength(e.target.value);
-        });
-        
-        // Password confirmation
-        this.addListener(this.ui.elements.passwordConfirm, 'input', (e) => {
-            this.checkPasswordMatch();
-        });
-        
-        // Encryption/Decryption buttons
-        this.addListener(this.ui.elements.encryptBtn, 'click', () => {
-            this.handleEncrypt();
-        });
-        
-        this.addListener(this.ui.elements.decryptBtn, 'click', () => {
-            this.handleDecrypt();
-        });
-        
-        // Advanced settings
-        this.addListener(this.ui.elements.toggleAdvanced, 'click', () => {
-            this.toggleAdvancedSettings();
-        });
-        
-        this.addListener(this.ui.elements.closeAdvancedSettings, 'click', () => {
-            this.toggleAdvancedSettings(false);
-        });
-        
-        // Security level selection
-        this.ui.elements.securityLevelOptions.forEach(option => {
-            this.addListener(option, 'change', (e) => {
-                if (e.target.checked) {
-                    this.setSecurityLevel(e.target.value);
-                }
-            });
-        });
-        
-        // PWA installation - مع إصلاح خطأ الدالة غير الموجودة
-        if (this.ui.elements.installPWA) {
-            this.addListener(this.ui.elements.installPWA, 'click', () => {
-                this.installPWA();
-            });
-            
-            this.addListener(this.ui.elements.dismissPWA, 'click', () => {
-                this.hidePWAInstallPrompt();
-            });
-        }
-        
-        // Dark mode toggle
-        if (this.ui.elements.toggleDarkMode) {
-            this.addListener(this.ui.elements.toggleDarkMode, 'click', () => {
-                this.toggleDarkMode();
-            });
-        }
-        
-        // Recovery system
-        if (this.ui.elements.closeRecovery) {
-            this.addListener(this.ui.elements.closeRecovery, 'click', () => {
-                this.hideRecoveryPanel();
-            });
-        }
-        
-        // Window events
-        this.addListener(window, 'beforeunload', (e) => {
-            if (this.state.fileProcessing) {
-                e.preventDefault();
-                e.returnValue = 'File processing in progress. Are you sure you want to leave?';
-                return e.returnValue;
-            }
-        });
-        
-        this.addListener(window, 'online', () => {
-            this.updateConnectionStatus(true);
-        });
-        
-        this.addListener(window, 'offline', () => {
-            this.updateConnectionStatus(false);
-        });
-        
-        // Keyboard shortcuts
-        this.addListener(document, 'keydown', (e) => {
-            this.handleKeyboardShortcuts(e);
-        });
-        
-        console.log('✓ Event listeners setup complete');
-    }
-    
-    /**
-     * Load saved application state
-     */
-    async loadSavedState() {
-        try {
-            // Load language preference
-            const savedLang = localStorage.getItem('ciphervault_language');
-            if (savedLang && this.components.translation) {
-                this.state.language = savedLang;
-                this.components.translation.setLanguage(savedLang);
-            }
-            
-            // Load security level
-            const savedSecurityLevel = localStorage.getItem('ciphervault_security_level');
-            if (savedSecurityLevel) {
-                this.state.securityLevel = savedSecurityLevel;
-                this.setSecurityLevel(savedSecurityLevel, true);
-            }
-            
-            // Load dark mode preference
-            const savedDarkMode = localStorage.getItem('ciphervault_dark_mode');
-            if (savedDarkMode !== null) {
-                this.state.darkMode = savedDarkMode === 'true';
-                this.applyDarkMode(this.state.darkMode);
-            }
-            
-            // Load statistics
-            const savedStats = localStorage.getItem('ciphervault_statistics');
-            if (savedStats) {
-                this.state.statistics = JSON.parse(savedStats);
-                this.updateStatisticsDisplay();
-            }
-            
-            console.log('✓ Saved state loaded');
-        } catch (error) {
-            console.warn('Failed to load saved state:', error);
-        }
-    }
-    
-    /**
-     * Finalize initialization
-     */
-    async finalizeInit() {
-        // Update security indicators
-        this.updateSecurityIndicators();
-        
-        // Update connection status
-        this.updateConnectionStatus(navigator.onLine);
-        
-        // Check for PWA installation - إصلاح الخطأ: showInstallPromptIfNeeded غير موجود
-        if (this.components.pwa && typeof this.components.pwa.showInstallPrompt === 'function') {
-            setTimeout(() => {
-                try {
-                    this.components.pwa.showInstallPrompt();
-                } catch (error) {
-                    console.warn('Failed to show PWA install prompt:', error);
-                }
-            }, 3000);
-        } else if (this.components.pwa && typeof this.components.pwa.promptInstall === 'function') {
-            // محاولة اسم دالة مختلف
-            setTimeout(() => {
-                try {
-                    this.components.pwa.promptInstall();
-                } catch (error) {
-                    console.warn('Failed to show PWA install prompt:', error);
-                }
-            }, 3000);
-        }
-        
-        // Log successful initialization
-        if (this.components.audit) {
-            await this.components.audit.logEvent('APPLICATION_INITIALIZED', 'INFO', {
-                version: '4.2.0',
-                securityLevel: this.state.securityLevel,
-                language: this.state.language
-            });
-        }
-        
-        // Set initialization flag
-        this.state.initialized = true;
-        
-        // Show welcome message
-        setTimeout(() => {
-            this.showStatus('info', 'welcome_message', 'CipherVault 3D Pro is ready. Select a file to begin.');
-        }, 1000);
-    }
-    
-    // ============================================================================
-    // LANGUAGE & LOCALIZATION
-    // ============================================================================
-    
-    /**
-     * Set application language
-     */
-    setLanguage(lang) {
-        if (!this.components.translation) return;
-        
-        try {
-            this.components.translation.setLanguage(lang);
-            this.state.language = lang;
-            
-            // Update UI elements that depend on language
-            this.updateUIState();
-            
-            // Save preference
-            localStorage.setItem('ciphervault_language', lang);
-            
-            // Log event
-            if (this.components.audit) {
-                this.components.audit.logEvent('LANGUAGE_CHANGED', 'INFO', { language: lang });
-            }
-            
-            console.log(`Language changed to: ${lang}`);
-        } catch (error) {
-            console.error('Failed to set language:', error);
-            this.showStatus('error', 'language_change_failed', 'Failed to change language');
-        }
-    }
-    
-    // ============================================================================
-    // SECURITY MANAGEMENT
-    // ============================================================================
-    
-    /**
-     * Set security level
-     */
-    setSecurityLevel(level, silent = false) {
-        const validLevels = ['BASIC', 'MEDIUM', 'HIGH', 'MILITARY'];
-        if (!validLevels.includes(level)) {
-            console.warn(`Invalid security level: ${level}`);
-            return;
-        }
-        
-        this.state.securityLevel = level;
-        
-        // Update UI
-        this.ui.elements.securityLevelValue.textContent = level;
-        this.ui.elements.securityLevelValue.className = `security-value level-${level.toLowerCase()}`;
-        
-        // Update radio button
-        this.ui.elements.securityLevelOptions.forEach(option => {
-            option.checked = option.value === level;
-        });
-        
-        // Save preference
-        localStorage.setItem('ciphervault_security_level', level);
-        
-        if (!silent) {
-            this.showStatus('info', 'security_level_changed', `Security level set to ${level}`);
-            
-            // Log event
-            if (this.components.audit) {
-                this.components.audit.logEvent('SECURITY_LEVEL_CHANGED', 'INFO', { level });
-            }
-        }
-    }
-    
-    /**
-     * Update security indicators
-     */
-    updateSecurityIndicators() {
-        const indicators = [
-            { id: 'securityHttps', active: this.state.security.https, icon: 'fa-lock' },
-            { id: 'securityCrypto', active: this.state.security.cryptoAvailable, icon: 'fa-microchip' },
-            { id: 'securityWorkers', active: this.state.security.workersAvailable, icon: 'fa-cogs' },
-            { id: 'securityStorage', active: 'localStorage' in window, icon: 'fa-database' }
-        ];
-        
-        indicators.forEach(indicator => {
-            const element = document.getElementById(indicator.id);
-            if (element) {
-                if (indicator.active) {
-                    element.classList.add('active');
-                    element.classList.remove('inactive');
-                    element.innerHTML = `<i class="fas ${indicator.icon}"></i>`;
-                } else {
-                    element.classList.add('inactive');
-                    element.classList.remove('active');
-                    element.innerHTML = `<i class="fas ${indicator.icon}"></i>`;
-                }
-            }
-        });
-    }
-    
-    /**
-     * Setup password strength checking
-     */
-    setupPasswordStrength() {
-        const passwordInput = this.ui.elements.passwordEncrypt;
-        if (!passwordInput) return;
-        
-        passwordInput.addEventListener('input', (e) => {
-            this.checkPasswordStrength(e.target.value);
-        });
-    }
-    
-    /**
-     * Check password strength
-     */
-    checkPasswordStrength(password) {
-        if (!password) {
-            this.updatePasswordStrengthUI('weak', 0);
-            return 'weak';
-        }
-        
-        let score = 0;
-        const requirements = {
-            length: password.length >= 12,
-            lowercase: /[a-z]/.test(password),
-            uppercase: /[A-Z]/.test(password),
-            numbers: /\d/.test(password),
-            symbols: /[^A-Za-z0-9]/.test(password),
-            noSpaces: !/\s/.test(password),
-            noRepeats: !/(.)\1\1/.test(password)
-        };
-        
-        // Calculate score
-        Object.values(requirements).forEach(met => {
-            if (met) score++;
-        });
-        
-        // Additional points for length
-        if (password.length >= 16) score++;
-        if (password.length >= 20) score++;
-        
-        // Determine strength level
-        let strength;
-        if (score >= 6) {
-            strength = 'very-strong';
-        } else if (score >= 5) {
-            strength = 'strong';
-        } else if (score >= 4) {
-            strength = 'medium';
-        } else {
-            strength = 'weak';
-        }
-        
-        // Update UI
-        this.updatePasswordStrengthUI(strength, score);
-        
-        return strength;
-    }
-    
-    /**
-     * Update password strength UI
-     */
-    updatePasswordStrengthUI(strength, score) {
-        const strengthBar = this.ui.elements.passwordStrengthEncrypt?.querySelector('.strength-bar');
-        const strengthText = this.ui.elements.passwordStrengthEncrypt?.querySelector('.strength-text');
-        
-        if (!strengthBar || !strengthText) return;
-        
-        // Update visual bar
-        strengthBar.className = 'strength-bar';
-        strengthBar.classList.add(strength);
-        
-        // Update text
-        const translations = {
-            'weak': this.t('password-weak'),
-            'medium': this.t('password-medium'),
-            'strong': this.t('password-strong'),
-            'very-strong': this.t('password-very-strong')
-        };
-        
-        strengthText.textContent = translations[strength] || this.t('password-weak');
-        
-        // Update requirement hints
-        this.updatePasswordHints();
-    }
-    
-    /**
-     * Update password requirement hints
-     */
-    updatePasswordHints() {
-        const hints = document.querySelectorAll('.password-hints .hint');
-        const password = this.ui.elements.passwordEncrypt?.value || '';
-        
-        hints.forEach(hint => {
-            const type = hint.id.replace('hint', '').toLowerCase();
-            let isValid = false;
-            
-            switch (type) {
-                case 'length':
-                    isValid = password.length >= 12;
-                    break;
-                case 'upper':
-                    isValid = /[A-Z]/.test(password);
-                    break;
-                case 'lower':
-                    isValid = /[a-z]/.test(password);
-                    break;
-                case 'numbers':
-                    isValid = /\d/.test(password);
-                    break;
-                case 'symbols':
-                    isValid = /[^A-Za-z0-9]/.test(password);
-                    break;
-            }
-            
-            if (isValid) {
-                hint.classList.add('valid');
-            } else {
-                hint.classList.remove('valid');
-            }
-        });
-    }
-    
-    /**
-     * Check if passwords match
-     */
-    checkPasswordMatch() {
-        const password = this.ui.elements.passwordEncrypt?.value || '';
-        const confirm = this.ui.elements.passwordConfirm?.value || '';
-        const indicator = this.ui.elements.passwordMatchIndicator;
-        
-        if (!indicator) return;
-        
-        if (password && confirm) {
-            if (password === confirm) {
-                indicator.classList.add('show');
-                indicator.querySelector('span').textContent = this.t('passwords-match');
-                indicator.style.display = 'flex';
-            } else {
-                indicator.classList.remove('show');
-                indicator.style.display = 'none';
-            }
-        } else {
-            indicator.style.display = 'none';
-        }
-    }
-    
-    // ============================================================================
-    // FILE HANDLING
-    // ============================================================================
-    
-    /**
-     * Handle file selection
-     */
-    async handleFileSelect(type, file) {
-        if (!file) return;
-        
-        try {
-            // Validate file
-            if (!this.validateFile(file, type)) {
-                return;
-            }
-            
-            // Update state
-            if (type === 'encrypt') {
-                this.state.encryption.file = file;
-                this.updateFileInfo('encrypt', file);
-            } else {
-                this.state.decryption.file = file;
-                this.updateFileInfo('decrypt', file);
-            }
-            
-            // Show file info
-            this.showFileInfo(type);
-            
-            // Log event
-            if (this.components.audit) {
-                await this.components.audit.logEvent('FILE_SELECTED', 'INFO', {
-                    type,
-                    fileName: file.name,
-                    fileSize: file.size,
-                    fileType: file.type
-                });
-            }
-            
-        } catch (error) {
-            console.error('File selection error:', error);
-            this.showStatus('error', 'file_selection_error', 'Failed to process selected file');
-        }
-    }
-    
-    /**
-     * Validate file
-     */
-    validateFile(file, type) {
-        // Check file size - زيادة الحد إلى 10GB حسب طلبك
-        const maxSize = 10 * 1024 * 1024 * 1024; // 10GB
-        if (file.size > maxSize) {
-            this.showStatus('error', 'file_too_large', 'File size exceeds 10GB limit');
-            return false;
-        }
-        
-        // Check for empty file
-        if (file.size === 0) {
-            this.showStatus('error', 'file_empty', 'File is empty');
-            return false;
-        }
-        
-        // Additional validation for decryption
-        if (type === 'decrypt') {
-            const validExtensions = ['.cvault', '.cvenc', '.cvmil', '.encrypted'];
-            const fileName = file.name.toLowerCase();
-            const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
-            
-            if (!hasValidExtension) {
-                this.showStatus('error', 'invalid_encrypted_file', 'File does not appear to be encrypted');
-                return false;
-            }
-        }
-        
-        return true;
-    }
-    
-    /**
-     * Update file info display
-     */
-    updateFileInfo(type, file) {
-        const elements = type === 'encrypt' ? {
-            name: this.ui.elements.encryptFileName,
-            size: this.ui.elements.encryptFileSize,
-            info: this.ui.elements.encryptFileInfo
-        } : {
-            name: this.ui.elements.decryptFileName,
-            size: this.ui.elements.decryptFileSize,
-            info: this.ui.elements.decryptFileInfo
-        };
-        
-        if (elements.name) {
-            elements.name.textContent = file.name;
-        }
-        
-        if (elements.size) {
-            elements.size.textContent = this.formatFileSize(file.size);
-        }
-        
-        if (elements.info) {
-            elements.info.style.display = 'flex';
-        }
-    }
-    
-    /**
-     * Show file info panel
-     */
-    showFileInfo(type) {
-        const card = type === 'encrypt' ? this.ui.elements.encryptCard : this.ui.elements.decryptCard;
-        if (card) {
-            card.classList.add('file-selected');
-        }
-    }
-    
-    /**
-     * Clear file selection
-     */
-    clearFile(type) {
-        if (type === 'encrypt') {
-            this.state.encryption.file = null;
-            this.ui.elements.fileInputEncrypt.value = '';
-            this.ui.elements.encryptFileInfo.style.display = 'none';
-            this.ui.elements.encryptCard?.classList.remove('file-selected');
-        } else {
-            this.state.decryption.file = null;
-            this.ui.elements.fileInputDecrypt.value = '';
-            this.ui.elements.decryptFileInfo.style.display = 'none';
-            this.ui.elements.decryptCard?.classList.remove('file-selected');
-        }
-        
-        this.showStatus('info', 'file_cleared', 'File selection cleared');
-    }
-    
-    /**
-     * Setup drag and drop
-     */
-    setupDragAndDrop() {
-        const setupArea = (area, type) => {
-            if (!area) return;
-            
-            area.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                area.classList.add('drag-over');
-            });
-            
-            area.addEventListener('dragleave', () => {
-                area.classList.remove('drag-over');
-            });
-            
-            area.addEventListener('drop', (e) => {
-                e.preventDefault();
-                area.classList.remove('drag-over');
-                
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    const fileInput = type === 'encrypt' ? 
-                        this.ui.elements.fileInputEncrypt : 
-                        this.ui.elements.fileInputDecrypt;
-                    
-                    fileInput.files = files;
-                    fileInput.dispatchEvent(new Event('change'));
-                }
-            });
-        };
-        
-        setupArea(this.ui.elements.encryptUpload, 'encrypt');
-        setupArea(this.ui.elements.decryptUpload, 'decrypt');
-    }
-    
-    // ============================================================================
-    // ENCRYPTION/DECRYPTION
-    // ============================================================================
-    
-    /**
-     * Handle encryption
-     */
-    async handleEncrypt() {
-        // Validation
-        if (!this.state.encryption.file) {
-            this.showStatus('error', 'no_file_selected', 'Please select a file first');
-            return;
-        }
-        
-        const password = this.ui.elements.passwordEncrypt.value;
-        if (!password) {
-            this.showStatus('error', 'no_password', 'Please enter a password');
-            return;
-        }
-        
-        const confirmPassword = this.ui.elements.passwordConfirm.value;
-        if (password !== confirmPassword) {
-            this.showStatus('error', 'passwords_dont_match', 'Passwords do not match');
-            return;
-        }
-        
-        const strength = this.checkPasswordStrength(password);
-        if (strength === 'weak') {
-            const confirmed = await this.showConfirmation(
-                'Weak Password',
-                'Your password is weak. It may be easily guessed. Continue anyway?',
-                'Continue',
-                'Cancel'
-            );
-            
-            if (!confirmed) return;
-        }
-        
-        // Start encryption
-        try {
-            this.state.fileProcessing = true;
-            this.state.encryption.startTime = Date.now();
-            this.state.encryption.password = password;
-            
-            // Disable UI
-            this.setUIState('encrypt', 'processing');
-            
-            // Show progress
-            this.showProgress('encrypt', 0);
-            
-            // Get options
-            const options = {
-                securityLevel: this.state.securityLevel,
-                compress: this.ui.elements.compressOption?.checked || false,
-                split: this.ui.elements.splitOption?.checked || false
-            };
-            
-            // Log start
-            if (this.components.audit) {
-                await this.components.audit.logEvent('ENCRYPTION_STARTED', 'INFO', {
-                    fileName: this.state.encryption.file.name,
-                    fileSize: this.state.encryption.file.size,
-                    securityLevel: options.securityLevel
-                });
-            }
-            
-            // Choose encryption method based on file size and security level
-            let result;
-            if (this.state.encryption.file.size > 100 * 1024 * 1024) {
-                // Large file: use streaming
-                result = await this.encryptLargeFile(this.state.encryption.file, password, options);
-            } else if (options.securityLevel === 'MILITARY') {
-                // Military grade encryption
-                result = await this.components.militaryCrypto.militaryEncrypt(
-                    this.state.encryption.file,
-                    password,
-                    options
-                );
-            } else {
-                // Standard encryption
-                result = await this.components.crypto.encryptFile(
-                    this.state.encryption.file,
-                    password,
-                    options
-                );
-            }
-            
-            // Create download
-            const filename = this.generateEncryptedFilename(this.state.encryption.file.name);
-            this.downloadFile(filename, result.data);
-            
-            // Update statistics
-            this.updateStatistics('encrypt', this.state.encryption.file.size, Date.now() - this.state.encryption.startTime);
-            
-            // Show success
-            this.showStatus('success', 'encryption_success', 'File encrypted successfully');
-            
-            // Log success
-            if (this.components.audit) {
-                await this.components.audit.logEvent('ENCRYPTION_COMPLETED', 'INFO', {
-                    fileName: this.state.encryption.file.name,
-                    encryptedSize: result.data.length,
-                    timeTaken: Date.now() - this.state.encryption.startTime
-                });
-            }
-            
-            // Reset form
-            this.resetEncryptionForm();
-            
-        } catch (error) {
-            console.error('Encryption failed:', error);
-            this.showStatus('error', 'encryption_failed', error.message || 'Encryption failed');
-            
-            // Log error
-            if (this.components.audit) {
-                await this.components.audit.logEvent('ENCRYPTION_FAILED', 'ERROR', {
-                    error: error.message,
-                    fileName: this.state.encryption.file?.name
-                });
-            }
-        } finally {
-            // Re-enable UI
-            this.setUIState('encrypt', 'ready');
-            this.state.fileProcessing = false;
-            this.hideProgress('encrypt');
-        }
-    }
-    
-    /**
-     * Handle decryption
-     */
-    async handleDecrypt() {
-        // Validation
-        if (!this.state.decryption.file) {
-            this.showStatus('error', 'no_file_selected', 'Please select a file first');
-            return;
-        }
-        
-        const password = this.ui.elements.passwordDecrypt.value;
-        if (!password) {
-            this.showStatus('error', 'no_password', 'Please enter the decryption password');
-            return;
-        }
-        
-        // Start decryption
-        try {
-            this.state.fileProcessing = true;
-            this.state.decryption.startTime = Date.now();
-            this.state.decryption.password = password;
-            
-            // Disable UI
-            this.setUIState('decrypt', 'processing');
-            
-            // Show progress
-            this.showProgress('decrypt', 0);
-            
-            // Log start
-            if (this.components.audit) {
-                await this.components.audit.logEvent('DECRYPTION_STARTED', 'INFO', {
-                    fileName: this.state.decryption.file.name,
-                    fileSize: this.state.decryption.file.size
-                });
-            }
-            
-            // Read file
-            const arrayBuffer = await this.state.decryption.file.arrayBuffer();
-            const encryptedData = new Uint8Array(arrayBuffer);
-            
-            // Try different decryption methods
-            let result;
-            try {
-                // First try standard decryption
-                result = await this.components.crypto.decryptFile(
-                    encryptedData,
-                    password,
-                    (progress) => {
-                        this.updateProgress('decrypt', progress);
-                    }
-                );
-            } catch (error) {
-                // If standard decryption fails, try military decryption
-                console.log('Standard decryption failed, trying military decryption...');
-                result = await this.components.militaryCrypto.militaryDecrypt(
-                    encryptedData,
-                    password,
-                    (progress) => {
-                        this.updateProgress('decrypt', progress);
-                    }
-                );
-            }
-            
-            // Create download
-            const filename = this.generateDecryptedFilename(this.state.decryption.file.name, result.metadata);
-            this.downloadFile(filename, result.data);
-            
-            // Update statistics
-            this.updateStatistics('decrypt', result.data.byteLength, Date.now() - this.state.decryption.startTime);
-            
-            // Show success
-            this.showStatus('success', 'decryption_success', 'File decrypted successfully');
-            
-            // Log success
-            if (this.components.audit) {
-                await this.components.audit.logEvent('DECRYPTION_COMPLETED', 'INFO', {
-                    fileName: this.state.decryption.file.name,
-                    decryptedSize: result.data.byteLength,
-                    timeTaken: Date.now() - this.state.decryption.startTime
-                });
-            }
-            
-            // Reset form
-            this.resetDecryptionForm();
-            
-        } catch (error) {
-            console.error('Decryption failed:', error);
-            
-            // Check for specific error types
-            let errorMessage = 'Decryption failed';
-            if (error.message.includes('password') || error.message.includes('Password')) {
-                errorMessage = 'Incorrect password or corrupted file';
-            } else if (error.message.includes('corrupt') || error.message.includes('invalid')) {
-                errorMessage = 'File is corrupted or invalid';
-            }
-            
-            this.showStatus('error', 'decryption_failed', errorMessage);
-            
-            // Log error
-            if (this.components.audit) {
-                await this.components.audit.logEvent('DECRYPTION_FAILED', 'ERROR', {
-                    error: error.message,
-                    fileName: this.state.decryption.file?.name
-                });
-            }
-        } finally {
-            // Re-enable UI
-            this.setUIState('decrypt', 'ready');
-            this.state.fileProcessing = false;
-            this.hideProgress('decrypt');
-        }
-    }
-    
-    /**
-     * Encrypt large file using streaming/chunks - محسن للذاكرة
-     */
-    async encryptLargeFile(file, password, options) {
-        // For files larger than 100MB, use chunked encryption
-        const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
-        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-        const encryptedChunks = [];
-        
-        for (let i = 0; i < totalChunks; i++) {
-            const start = i * CHUNK_SIZE;
-            const end = Math.min(start + CHUNK_SIZE, file.size);
-            const chunk = file.slice(start, end);
-            
-            // Encrypt chunk
-            const chunkResult = await this.components.crypto.encryptFile(
-                new File([chunk], file.name),
-                password,
-                options
-            );
-            
-            encryptedChunks.push(chunkResult.data);
-            
-            // Update progress
-            const progress = Math.round(((i + 1) / totalChunks) * 100);
-            this.updateProgress('encrypt', progress);
-            
-            // تنظيف الذاكرة كل 5 أجزاء
-            if (i % 5 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 0)); // إعطاء فرصة للمتصفح
-            }
-        }
-        
-        // Combine all chunks
-        const totalSize = encryptedChunks.reduce((sum, chunk) => sum + chunk.length, 0);
-        const result = new Uint8Array(totalSize);
-        
-        let offset = 0;
-        for (const chunk of encryptedChunks) {
-            result.set(chunk, offset);
-            offset += chunk.length;
-        }
-        
-        return { data: result };
-    }
-    
-    // ============================================================================
-    // UI MANAGEMENT
-    // ============================================================================
-    
-    /**
-     * Update UI state
-     */
-    updateUIState() {
-        // Update language-specific elements
-        if (this.components.translation) {
-            this.components.translation.updatePageTranslations();
-        }
-        
-        // Update security level display
-        this.ui.elements.securityLevelValue.textContent = this.state.securityLevel;
-        
-        // Update statistics
-        this.updateStatisticsDisplay();
-        
-        // Update dark mode
-        this.applyDarkMode(this.state.darkMode);
-    }
-    
-    /**
-     * Set UI state for operation
-     */
-    setUIState(operation, state) {
-        const elements = operation === 'encrypt' ? {
-            btn: this.ui.elements.encryptBtn,
-            card: this.ui.elements.encryptCard,
-            inputs: [
-                this.ui.elements.fileInputEncrypt,
-                this.ui.elements.passwordEncrypt,
-                this.ui.elements.passwordConfirm
-            ]
-        } : {
-            btn: this.ui.elements.decryptBtn,
-            card: this.ui.elements.decryptCard,
-            inputs: [
-                this.ui.elements.fileInputDecrypt,
-                this.ui.elements.passwordDecrypt
-            ]
-        };
-        
-        switch (state) {
-            case 'processing':
-                elements.btn.disabled = true;
-                elements.btn.innerHTML = `
-                    <div class="btn-content">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <span>${this.t('processing')}</span>
-                    </div>
-                `;
-                
-                if (elements.card) {
-                    elements.card.classList.add('processing');
-                    elements.card.classList.add('flipped');
-                }
-                
-                elements.inputs.forEach(input => {
-                    if (input) input.disabled = true;
-                });
-                break;
-                
-            case 'ready':
-                elements.btn.disabled = false;
-                elements.btn.innerHTML = `
-                    <div class="btn-content">
-                        <i class="fas ${operation === 'encrypt' ? 'fa-lock' : 'fa-unlock'}"></i>
-                        <span>${this.t(`${operation}-btn`)}</span>
-                    </div>
-                    <div class="btn-glow"></div>
-                `;
-                
-                if (elements.card) {
-                    elements.card.classList.remove('processing');
-                    elements.card.classList.remove('flipped');
-                }
-                
-                elements.inputs.forEach(input => {
-                    if (input) input.disabled = false;
-                });
-                break;
-        }
-    }
-    
-    /**
-     * Show progress
-     */
-    showProgress(operation, percent) {
-        const elements = operation === 'encrypt' ? {
-            progress: this.ui.elements.encryptProgress,
-            percent: this.ui.elements.encryptProgressPercent,
-            status: this.ui.elements.encryptProgressStatus
-        } : {
-            progress: this.ui.elements.decryptProgress,
-            percent: this.ui.elements.decryptProgressPercent,
-            status: this.ui.elements.decryptProgressStatus
-        };
-        
-        if (elements.progress) {
-            elements.progress.style.display = 'block';
-        }
-        
-        this.updateProgress(operation, percent);
-    }
-    
-    /**
-     * Update progress
-     */
-    updateProgress(operation, percent) {
-        const elements = operation === 'encrypt' ? {
-            percent: this.ui.elements.encryptProgressPercent,
-            status: this.ui.elements.encryptProgressStatus,
-            card: this.ui.elements.encryptCard
-        } : {
-            percent: this.ui.elements.decryptProgressPercent,
-            status: this.ui.elements.decryptProgressStatus,
-            card: this.ui.elements.decryptCard
-        };
-        
-        // Update percentage
-        if (elements.percent) {
-            elements.percent.textContent = Math.round(percent);
-            
-            // Update circular progress bar
-            const circle = elements.percent.closest('.progress-circle')?.querySelector('.progress-bar');
-            if (circle) {
-                const radius = 54;
-                const circumference = 2 * Math.PI * radius;
-                const offset = circumference - (percent / 100) * circumference;
-                circle.style.strokeDashoffset = offset;
-            }
-        }
-        
-        // Update status text
-        if (elements.status) {
-            if (percent < 100) {
-                elements.status.textContent = this.t('processing');
-            } else {
-                elements.status.textContent = this.t('complete');
-            }
-        }
-        
-        // Flip card if just starting
-        if (percent === 0 && elements.card) {
-            elements.card.classList.add('flipped');
-        }
-        
-        // Unflip card when complete
-        if (percent === 100 && elements.card) {
-            setTimeout(() => {
-                elements.card.classList.remove('flipped');
-            }, 1000);
-        }
-    }
-    
-    /**
-     * Hide progress
-     */
-    hideProgress(operation) {
-        const progress = operation === 'encrypt' ? 
-            this.ui.elements.encryptProgress : 
-            this.ui.elements.decryptProgress;
-        
-        if (progress) {
-            setTimeout(() => {
-                progress.style.display = 'none';
-                this.updateProgress(operation, 0);
-            }, 1000);
-        }
-    }
-    
-    /**
-     * Show status message
-     */
-    showStatus(type, key, message) {
-        const types = {
-            success: {
-                element: this.ui.elements.successStatus,
-                text: this.ui.elements.successText,
-                icon: 'fa-check-circle'
-            },
-            error: {
-                element: this.ui.elements.errorStatus,
-                text: this.ui.elements.errorText,
-                icon: 'fa-exclamation-circle'
-            },
-            warning: {
-                element: this.ui.elements.warningStatus,
-                text: this.ui.elements.warningText,
-                icon: 'fa-exclamation-triangle'
-            },
-            info: {
-                element: this.ui.elements.infoStatus,
-                text: this.ui.elements.infoText,
-                icon: 'fa-info-circle'
-            }
-        };
-        
-        const status = types[type];
-        if (!status || !status.element) return;
-        
-        // Hide all statuses first
-        Object.values(types).forEach(s => {
-            if (s.element) s.element.style.display = 'none';
-        });
-        
-        // Show the requested status
-        const translatedMessage = this.t(key) || message;
-        status.text.textContent = translatedMessage;
-        status.element.style.display = 'flex';
-        
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-            status.element.style.display = 'none';
-        }, 5000);
-        
-        // Log to console
-        console.log(`${type.toUpperCase()}: ${translatedMessage}`);
-    }
-    
-    /**
-     * Toggle advanced settings
-     */
-    toggleAdvancedSettings(show) {
-        const panel = this.ui.elements.advancedSettingsPanel;
-        if (!panel) return;
-        
-        if (show === undefined) {
-            show = !panel.classList.contains('active');
-        }
-        
-        if (show) {
-            panel.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        } else {
-            panel.classList.remove('active');
-            document.body.style.overflow = '';
-        }
-    }
-    
-    /**
-     * Toggle dark mode
-     */
-    toggleDarkMode() {
-        this.state.darkMode = !this.state.darkMode;
-        this.applyDarkMode(this.state.darkMode);
-        localStorage.setItem('ciphervault_dark_mode', this.state.darkMode);
-    }
-    
-    /**
-     * Apply dark mode
-     */
-    applyDarkMode(enabled) {
-        if (enabled) {
-            document.body.classList.add('dark-mode');
-            if (this.ui.elements.toggleDarkMode) {
-                this.ui.elements.toggleDarkMode.innerHTML = '<i class="fas fa-sun"></i>';
-            }
-        } else {
-            document.body.classList.remove('dark-mode');
-            if (this.ui.elements.toggleDarkMode) {
-                this.ui.elements.toggleDarkMode.innerHTML = '<i class="fas fa-moon"></i>';
-            }
-        }
-    }
-    
-    /**
-     * Update connection status
-     */
-    updateConnectionStatus(online) {
-        if (!this.ui.elements.connectionStatus || !this.ui.elements.connectionIcon) return;
-        
-        if (online) {
-            this.ui.elements.connectionStatus.textContent = this.t('connection-online');
-            this.ui.elements.connectionIcon.className = 'fas fa-wifi';
-            this.ui.elements.connectionIcon.style.color = 'var(--success)';
-        } else {
-            this.ui.elements.connectionStatus.textContent = this.t('connection-offline');
-            this.ui.elements.connectionIcon.className = 'fas fa-wifi-slash';
-            this.ui.elements.connectionIcon.style.color = 'var(--error)';
-        }
-    }
-    
-    // ============================================================================
-    // STATISTICS
-    // ============================================================================
-    
-    /**
-     * Update statistics
-     */
-    updateStatistics(operation, fileSize, timeTaken) {
-        if (operation === 'encrypt') {
-            this.state.statistics.filesEncrypted++;
-        } else {
-            this.state.statistics.filesDecrypted++;
-        }
-        
-        this.state.statistics.totalDataProcessed += fileSize;
-        this.state.statistics.totalTimeSpent += timeTaken;
-        
-        if (timeTaken > 0) {
-            const speed = fileSize / (timeTaken / 1000); // bytes per second
-            this.state.statistics.averageSpeed = 
-                (this.state.statistics.averageSpeed + speed) / 2;
-        }
-        
-        // Save to localStorage
-        this.saveStatistics();
-        
-        // Update display
-        this.updateStatisticsDisplay();
-    }
-    
-    /**
-     * Update statistics display
-     */
-    updateStatisticsDisplay() {
-        if (this.ui.elements.filesProcessed) {
-            const totalFiles = this.state.statistics.filesEncrypted + this.state.statistics.filesDecrypted;
-            this.ui.elements.filesProcessed.textContent = totalFiles;
-        }
-        
-        if (this.ui.elements.dataEncrypted) {
-            this.ui.elements.dataEncrypted.textContent = this.formatFileSize(this.state.statistics.totalDataProcessed);
-        }
-        
-        if (this.ui.elements.encryptionSpeed) {
-            const speedMBps = (this.state.statistics.averageSpeed / (1024 * 1024)).toFixed(2);
-            this.ui.elements.encryptionSpeed.textContent = `${speedMBps} MB/s`;
-        }
-    }
-    
-    /**
-     * Save statistics
-     */
-    saveStatistics() {
-        try {
-            localStorage.setItem('ciphervault_statistics', JSON.stringify(this.state.statistics));
-        } catch (error) {
-            console.warn('Failed to save statistics:', error);
-        }
-    }
-    
-    // ============================================================================
-    // FILE DOWNLOAD
-    // ============================================================================
-    
-    /**
-     * Download file
-     */
-    downloadFile(filename, data) {
-        try {
-            const blob = new Blob([data], { type: 'application/octet-stream' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            
-            a.href = url;
-            a.download = filename;
-            a.style.display = 'none';
-            
-            document.body.appendChild(a);
-            a.click();
-            
-            // Cleanup
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 100);
-            
-        } catch (error) {
-            console.error('Download failed:', error);
-            this.showStatus('error', 'download_failed', 'Failed to download file');
-        }
-    }
-    
-    /**
-     * Generate encrypted filename
-     */
-    generateEncryptedFilename(originalName) {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const randomId = Math.random().toString(36).substr(2, 8);
-        const extension = this.getEncryptedFileExtension();
-        
-        // Remove original extension and add encrypted extension
-        const baseName = originalName.replace(/\.[^/.]+$/, "");
-        return `${baseName}_${timestamp}_${randomId}${extension}`;
-    }
-    
-    /**
-     * Generate decrypted filename
-     */
-    generateDecryptedFilename(encryptedName, metadata) {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        
-        if (metadata?.originalName) {
-            // Use original name from metadata
-            return `decrypted_${metadata.originalName}`;
-        } else {
-            // Fallback: remove encrypted extension and add decrypted prefix
-            const baseName = encryptedName.replace(/\.(cvault|cvenc|cvmil|encrypted)$/i, "");
-            return `decrypted_${baseName}_${timestamp}`;
-        }
-    }
-    
-    /**
-     * Get encrypted file extension based on security level
-     */
-    getEncryptedFileExtension() {
-        const extensions = {
-            'BASIC': '.cvault',
-            'MEDIUM': '.cvenc',
-            'HIGH': '.cvsec',
-            'MILITARY': '.cvmil'
-        };
-        
-        return extensions[this.state.securityLevel] || '.cvault';
-    }
-    
-    // ============================================================================
-    // FORM MANAGEMENT
-    // ============================================================================
-    
-    /**
-     * Reset encryption form
-     */
-    resetEncryptionForm() {
-        // Clear file selection
-        this.clearFile('encrypt');
-        
-        // Clear passwords
-        this.ui.elements.passwordEncrypt.value = '';
-        this.ui.elements.passwordConfirm.value = '';
-        this.ui.elements.passwordMatchIndicator.style.display = 'none';
-        
-        // Reset password strength
-        this.updatePasswordStrengthUI('weak', 0);
-        
-        // Clear state
-        this.state.encryption = {
-            file: null,
-            password: '',
-            options: {},
-            progress: 0,
-            startTime: null
-        };
-    }
-    
-    /**
-     * Reset decryption form
-     */
-    resetDecryptionForm() {
-        // Clear file selection
-        this.clearFile('decrypt');
-        
-        // Clear password
-        this.ui.elements.passwordDecrypt.value = '';
-        
-        // Clear state
-        this.state.decryption = {
-            file: null,
-            password: '',
-            progress: 0,
-            startTime: null
-        };
-    }
-    
-    // ============================================================================
-    // PWA MANAGEMENT
-    // ============================================================================
-    
-    /**
-     * Install PWA - دالة بديلة
-     */
-    async installPWA() {
-        if (!this.components.pwa) return;
-        
-        try {
-            if (typeof this.components.pwa.install === 'function') {
-                await this.components.pwa.install();
-            } else if (window.deferredPrompt) {
-                // استخدام الـ prompt المدمج في المتصفح
-                window.deferredPrompt.prompt();
-                const { outcome } = await window.deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    console.log('User accepted the install prompt');
-                }
-                window.deferredPrompt = null;
-            }
-            this.hidePWAInstallPrompt();
-        } catch (error) {
-            console.error('PWA installation failed:', error);
-            this.showStatus('error', 'pwa_install_failed', 'Failed to install app');
-        }
-    }
-    
-    /**
-     * Hide PWA install prompt
-     */
-    hidePWAInstallPrompt() {
-        if (this.ui.elements.pwaInstallPrompt) {
-            this.ui.elements.pwaInstallPrompt.classList.remove('show');
-        }
-    }
-    
-    // ============================================================================
-    // RECOVERY SYSTEM
-    // ============================================================================
-    
-    /**
-     * Show recovery panel
-     */
-    showRecoveryPanel() {
-        if (this.ui.elements.recoveryPanel) {
-            this.ui.elements.recoveryPanel.style.display = 'block';
-        }
-    }
-    
-    /**
-     * Hide recovery panel
-     */
-    hideRecoveryPanel() {
-        if (this.ui.elements.recoveryPanel) {
-            this.ui.elements.recoveryPanel.style.display = 'none';
-        }
-    }
-    
-    // ============================================================================
-    // KEYBOARD SHORTCUTS
-    // ============================================================================
-    
-    /**
-     * Handle keyboard shortcuts
-     */
-    handleKeyboardShortcuts(event) {
-        // Don't trigger shortcuts if user is typing in an input
-        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
-            return;
-        }
-        
-        // Ctrl/Cmd + E: Encrypt
-        if ((event.ctrlKey || event.metaKey) && event.key === 'e') {
-            event.preventDefault();
-            if (!this.ui.elements.encryptBtn.disabled) {
-                this.ui.elements.encryptBtn.click();
-            }
-        }
-        
-        // Ctrl/Cmd + D: Decrypt
-        if ((event.ctrlKey || event.metaKey) && event.key === 'd') {
-            event.preventDefault();
-            if (!this.ui.elements.decryptBtn.disabled) {
-                this.ui.elements.decryptBtn.click();
-            }
-        }
-        
-        // Ctrl/Cmd + L: Toggle language
-        if ((event.ctrlKey || event.metaKey) && event.key === 'l') {
-            event.preventDefault();
-            const currentLang = this.state.language;
-            const newLang = currentLang === 'en' ? 'ar' : 'en';
-            this.setLanguage(newLang);
-        }
-        
-        // Ctrl/Cmd + ,: Open settings
-        if ((event.ctrlKey || event.metaKey) && event.key === ',') {
-            event.preventDefault();
-            this.toggleAdvancedSettings(true);
-        }
-        
-        // Escape: Close modals
-        if (event.key === 'Escape') {
-            this.toggleAdvancedSettings(false);
-            this.hideRecoveryPanel();
-        }
-    }
-    
-    // ============================================================================
-    // UTILITY METHODS
-    // ============================================================================
-    
-    /**
-     * Format file size
-     */
-    formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-    
-    /**
-     * Get translation
-     */
-    t(key, params) {
-        if (this.components.translation) {
-            return this.components.translation.t(key, params);
-        }
-        return key;
-    }
-    
-    /**
-     * Add event listener with cleanup tracking
-     */
-    addListener(element, event, handler) {
-        if (!element) return;
-        
-        element.addEventListener(event, handler);
-        
-        // Track for cleanup
-        if (!this.ui.listeners[event]) {
-            this.ui.listeners[event] = [];
-        }
-        this.ui.listeners[event].push({ element, handler });
-    }
-    
-    /**
-     * Show confirmation dialog
-     */
-    async showConfirmation(title, message, confirmText, cancelText) {
-        return new Promise((resolve) => {
-            const modal = document.createElement('div');
-            modal.className = 'confirmation-modal active';
-            modal.innerHTML = `
-                <div class="confirmation-content">
-                    <div class="confirmation-header">
-                        <h3>${title}</h3>
-                        <button class="close-confirmation">&times;</button>
-                    </div>
-                    <div class="confirmation-body">
-                        <p>${message}</p>
-                    </div>
-                    <div class="confirmation-footer">
-                        <button class="btn-confirm">${confirmText}</button>
-                        <button class="btn-cancel">${cancelText}</button>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(modal);
-            
-            const closeModal = (result) => {
-                document.body.removeChild(modal);
-                resolve(result);
-            };
-            
-            modal.querySelector('.close-confirmation').addEventListener('click', () => closeModal(false));
-            modal.querySelector('.btn-confirm').addEventListener('click', () => closeModal(true));
-            modal.querySelector('.btn-cancel').addEventListener('click', () => closeModal(false));
-            
-            // Close on escape
-            const handleEscape = (e) => {
-                if (e.key === 'Escape') closeModal(false);
-            };
-            document.addEventListener('keydown', handleEscape);
-            
-            // Remove escape listener when modal closes
-            setTimeout(() => {
-                document.removeEventListener('keydown', handleEscape);
-            }, 100);
-        });
-    }
-    
-    /**
-     * Show fatal error
-     */
-    showFatalError(message) {
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'fatal-error';
-        errorDiv.innerHTML = `
-            <div class="fatal-error-content">
-                <i class="fas fa-exclamation-triangle"></i>
-                <h2>Fatal Error</h2>
-                <p>${message}</p>
-                <button onclick="location.reload()">Reload Application</button>
-            </div>
-        `;
-        
-        document.body.innerHTML = '';
-        document.body.appendChild(errorDiv);
-        document.body.className = 'fatal-error-page';
-    }
-    
-    /**
-     * Cleanup resources
-     */
-    cleanup() {
-        // Remove event listeners
-        Object.entries(this.ui.listeners).forEach(([event, listeners]) => {
-            listeners.forEach(({ element, handler }) => {
-                element.removeEventListener(event, handler);
-            });
-        });
-        
-        // Terminate workers
-        if (this.components.workers) {
-            this.components.workers.terminateAll();
-        }
-        
-        // Clear timeouts/intervals
-        // (Add any cleanup for timers here)
-        
-        console.log('CipherVault cleanup completed');
-    }
+constructor() {
+// State
+this.state = {
+encryption: {
+file: null,
+password: '',
+confirmPassword: '',
+settings: {
+securityLevel: 'MEDIUM',
+useWorkers: true,
+compress: true,
+verifyIntegrity: true,
+wipeMemory: true
+}
+},
+decryption: {
+file: null,
+password: '',
+settings: {
+verifyIntegrity: true,
+wipeMemory: true,
+keepMetadata: false,
+autoOpen: false
+}
+},
+ui: {
+darkMode: localStorage.getItem('darkMode') === 'true',
+advancedSettings: false,
+language: localStorage.getItem('language') || 'en',
+currentFile: null,
+isProcessing: false,
+workersAvailable: false,
+memoryAvailable: navigator.deviceMemory || 0,
+cpuCores: navigator.hardwareConcurrency || 1
+}
+};
+
+// Components
+this.components = {
+crypto: null,
+militaryCrypto: null,
+translation: null,
+threejs: null, // Will hold reference to ThreeSceneManager instance
+audit: null,
+pwa: null,
+workers: null
+};
+
+// UI References
+this.ui = {
+elements: {},
+listeners: {}
+};
+
+// Event system
+this.events = new EventTarget();
+
+// Initialize performance monitoring
+this.performance = new PerformanceMonitor();
+console.log('CipherVault App initialized');
+}
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+/**
+* Initialize the entire application
+*/
+async init() {
+console.log('🚀 Initializing CipherVault 3D Pro v4.3.0...');
+console.log('🔧 Checking browser compatibility...');
+try {
+await this.checkRequirements();
+console.log('✅ Browser requirements met');
+} catch (error) {
+console.error('❌ Browser requirements not met:', error);
+this.showStatus('error', 'browser_compatibility_error', error.message);
+return;
+}
+
+console.log('🔧 Initializing UI elements...');
+this.initUI();
+
+console.log('🔧 Initializing subsystems...');
+await this.initSubsystems();
+
+console.log('🔧 Applying initial settings...');
+this.applyInitialSettings();
+
+console.log('✅ CipherVault App initialized successfully');
+this.updateSecurityStatus();
+this.updateStatistics();
+
+// Dispatch initialization event
+this.events.dispatchEvent(new CustomEvent('app:initialized', {
+detail: { timestamp: Date.now() }
+}));
+}
+
+/**
+* Check browser requirements
+*/
+async checkRequirements() {
+const requirements = {
+// Modern JavaScript (ES2017+)
+modernBrowser: async () => {
+try {
+// Test async function support
+eval('(async () => {})');
+// Test arrow function support
+eval('(() => {})');
+// Test other modern features if needed
+} catch (error) {
+throw new Error('Browser does not support modern JavaScript features (async/await). Please use a modern browser.');
+}
+return true;
+},
+// File API
+fileApi: () => {
+// Already checked in modernBrowser check
+return true;
+},
+// Crypto API
+cryptoApi: () => {
+if (typeof crypto === 'undefined' || typeof crypto.subtle === 'undefined') {
+throw new Error('Browser does not support Web Crypto API. Encryption will not work.');
+}
+return true;
+},
+// Web Workers
+webWorkers: () => {
+if (typeof Worker === 'undefined') {
+throw new Error('Browser does not support Web Workers. Large file processing may be slow.');
+}
+return true;
+},
+// Local Storage
+localStorage: () => {
+if (typeof localStorage === 'undefined') {
+throw new Error('Browser does not support Local Storage. Settings will not be saved.');
+}
+return true;
+},
+// WebGL for 3D (non-fatal)
+webgl: () => {
+const canvas = document.createElement('canvas');
+const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+if (!gl) {
+console.warn('WebGL not supported. 3D visualization will be disabled.');
+return false; // Non-fatal
+}
+return true;
+}
+};
+
+// Run all requirement checks
+for (const [name, check] of Object.entries(requirements)) {
+try {
+await check();
+console.log(`✓ ${name} check passed`);
+} catch (error) {
+console.error(`✗ ${name} check failed:`, error.message);
+// Only critical errors should stop initialization
+if (name === 'cryptoApi' || name === 'modernBrowser') {
+throw error; // Fatal errors
+}
+}
+}
+}
+
+/**
+* Initialize UI elements
+*/
+initUI() {
+// File inputs
+this.ui.elements.fileInputEncrypt = document.getElementById('fileInputEncrypt');
+this.ui.elements.fileInputDecrypt = document.getElementById('fileInputDecrypt');
+
+// File info displays
+this.ui.elements.encryptFileInfo = document.getElementById('encryptFileInfo');
+this.ui.elements.decryptFileInfo = document.getElementById('decryptFileInfo');
+
+// Password inputs
+this.ui.elements.passwordEncrypt = document.getElementById('passwordEncrypt');
+this.ui.elements.passwordConfirm = document.getElementById('passwordConfirm');
+this.ui.elements.passwordDecrypt = document.getElementById('passwordDecrypt');
+
+// Action buttons
+this.ui.elements.encryptBtn = document.getElementById('encryptBtn');
+this.ui.elements.decryptBtn = document.getElementById('decryptBtn');
+
+// Progress displays
+this.ui.elements.encryptProgress = document.getElementById('encryptProgress');
+this.ui.elements.decryptProgress = document.getElementById('decryptProgress');
+
+// Card elements
+this.ui.elements.encryptCard = document.querySelector('.encrypt-card');
+this.ui.elements.decryptCard = document.querySelector('.decrypt-card');
+
+// Status messages
+this.ui.elements.statusContainer = document.getElementById('status-container');
+this.ui.elements.successStatus = document.getElementById('success-status');
+this.ui.elements.errorStatus = document.getElementById('error-status');
+this.ui.elements.warningStatus = document.getElementById('warning-status');
+this.ui.elements.infoStatus = document.getElementById('info-status');
+this.ui.elements.successText = document.getElementById('success-text');
+this.ui.elements.errorText = document.getElementById('error-text');
+this.ui.elements.warningText = document.getElementById('warning-text');
+this.ui.elements.infoText = document.getElementById('info-text');
+
+// Statistics
+this.ui.elements.filesProcessed = document.getElementById('filesProcessed');
+this.ui.elements.dataEncrypted = document.getElementById('dataEncrypted');
+this.ui.elements.encryptionSpeed = document.getElementById('encryptionSpeed');
+this.ui.elements.securityLevelValue = document.getElementById('securityLevelValue');
+
+// Security indicators
+this.ui.elements.securityHttps = document.getElementById('securityHttps');
+this.ui.elements.securityCrypto = document.getElementById('securityCrypto');
+this.ui.elements.securityWorkers = document.getElementById('securityWorkers');
+this.ui.elements.securityStorage = document.getElementById('securityStorage');
+
+// Recovery system
+this.ui.elements.recoveryPanel = document.getElementById('recoveryPanel');
+
+// Settings
+this.ui.elements.autoClear = document.getElementById('autoClear');
+
+// Ensure all elements are found
+const missingElements = [];
+Object.entries(this.ui.elements).forEach(([name, element]) => {
+if (!element) {
+missingElements.push(name);
+}
+});
+
+if (missingElements.length > 0) {
+throw new Error(`Missing UI elements: ${missingElements.join(', ')}`);
+}
+
+console.log('✅ UI elements initialized');
+}
+
+/**
+* Initialize subsystems
+*/
+async initSubsystems() {
+console.log('Initializing subsystems...');
+
+// Initialize Translation System
+if (window.TranslationManager) {
+this.components.translation = window.TranslationManager;
+console.log('✓ Translation system initialized');
+}
+
+// Initialize Crypto Systems
+if (window.CryptoEngine) {
+this.components.crypto = window.CryptoEngine;
+// Test crypto functionality
+const testResult = await this.components.crypto.selfTest();
+if (testResult.passed) {
+console.log('✓ Core crypto system initialized and tested');
+} else {
+console.warn('Crypto self-test had issues:', testResult);
+}
+}
+
+if (window.MilitaryCryptoEngine) {
+this.components.militaryCrypto = window.MilitaryCryptoEngine;
+console.log('✓ Military crypto system initialized');
+}
+
+// Initialize Three.js Scene - مع معالجة أفضل للأخطاء
+// ⭐ التأكد من أن ThreeSceneManager قد تم تعريفه
+if (typeof ThreeSceneManager !== 'undefined' && typeof initThreeJS === 'function') {
+try {
+// ⭐ تهيئة Three.js مع التأكد من تحميل الملفات أولاً
+await this.waitForThreeJSLoad();
+initThreeJS();
+// ⭐ الحصول على مرجع للمكون
+this.components.threejs = window.getThreeScene();
+console.log('✅ Three.js scene initialized via ThreeSceneManager');
+} catch (error) {
+console.warn('Three.js initialization failed via initThreeJS:', error);
+// ⭐ محاولة مباشرة لتهيئة ThreeSceneManager إذا فشل initThreeJS
+try {
+if (!window.ThreeScene) {
+window.ThreeScene = new ThreeSceneManager();
+this.components.threejs = window.ThreeScene;
+console.log('✅ Three.js scene initialized directly via ThreeSceneManager');
+} else {
+this.components.threejs = window.ThreeScene;
+console.log('✅ Three.js scene already initialized, reusing instance');
+}
+} catch (directError) {
+console.warn('Direct Three.js initialization also failed:', directError);
+// استمر حتى لو فشلت Three.js، فهي ليست أساسية للتشفير
+this.showStatus('warning', 'threejs_warning', '3D effects initialization failed. Encryption/Decryption will still work.');
+}
+}
+} else {
+console.warn('ThreeSceneManager or initThreeJS not found, skipping 3D initialization.');
+// استمر حتى لو فشلت Three.js، فهي ليست أساسية للتشفير
+this.showStatus('warning', 'threejs_warning', '3D effects not available. Encryption/Decryption will still work.');
+}
+
+// Initialize PWA Manager - مع إصلاح تسجيل المشاكل
+if (window.PWAManager) {
+try {
+this.components.pwa = window.PWAManager;
+await this.components.pwa.init();
+console.log('✓ PWA manager initialized');
+} catch (error) {
+console.warn('PWA manager initialization failed:', error);
+// استمر دون PWA، فهي ليست أساسية
+}
+}
+
+// Initialize Audit System
+if (window.SecurityAudit) {
+this.components.audit = window.SecurityAudit;
+console.log('✓ Security audit system initialized');
+}
+
+// Initialize Workers
+if (window.WorkerManager) {
+this.components.workers = window.WorkerManager;
+console.log('✓ Worker manager initialized');
+}
+
+console.log('✅ Subsystems initialized');
+}
+
+/**
+* ⭐ دالة للانتظار حتى تحميل Three.js بالكامل
+*/
+waitForThreeJSLoad() {
+return new Promise((resolve, reject) => {
+const maxWaitTime = 5000; // 5 seconds
+const checkInterval = 100; // 100ms
+let elapsedTime = 0;
+
+const check = () => {
+elapsedTime += checkInterval;
+if (typeof THREE !== 'undefined' && typeof ThreeSceneManager !== 'undefined') {
+console.log('✅ Three.js and ThreeSceneManager are loaded');
+resolve();
+} else if (elapsedTime >= maxWaitTime) {
+console.warn('⚠️ Timeout waiting for Three.js to load');
+reject(new Error('Three.js failed to load within timeout period'));
+} else {
+setTimeout(check, checkInterval);
+}
+};
+
+check();
+});
+}
+
+/**
+* Apply initial settings
+*/
+applyInitialSettings() {
+// Apply dark mode
+if (this.state.ui.darkMode) {
+document.body.classList.add('dark-mode');
+}
+
+// Apply language
+if (this.components.translation) {
+this.components.translation.setLanguage(this.state.ui.language);
+}
+
+// Apply security level
+this.updateSecurityLevelDisplay();
+
+// Apply performance monitoring
+this.performance.startMonitoring();
+}
+
+/**
+* Update security status indicators
+*/
+updateSecurityStatus() {
+// HTTPS
+const isSecure = window.location.protocol === 'https:';
+if (this.ui.elements.securityHttps) {
+this.ui.elements.securityHttps.classList.toggle('active', isSecure);
+this.ui.elements.securityHttps.title = isSecure ? 'Secure Connection (HTTPS)' : 'Insecure Connection (HTTP)';
+}
+
+// Crypto API
+const cryptoAvailable = typeof crypto !== 'undefined' && typeof crypto.subtle !== 'undefined';
+if (this.ui.elements.securityCrypto) {
+this.ui.elements.securityCrypto.classList.toggle('active', cryptoAvailable);
+this.ui.elements.securityCrypto.title = cryptoAvailable ? 'Web Crypto API Available' : 'Web Crypto API Not Available';
+}
+
+// Workers
+const workersAvailable = typeof Worker !== 'undefined';
+if (this.ui.elements.securityWorkers) {
+this.ui.elements.securityWorkers.classList.toggle('active', workersAvailable);
+this.ui.elements.securityWorkers.title = workersAvailable ? 'Web Workers Available' : 'Web Workers Not Available';
+}
+
+// Local Storage
+const storageAvailable = typeof localStorage !== 'undefined';
+if (this.ui.elements.securityStorage) {
+this.ui.elements.securityStorage.classList.toggle('active', storageAvailable);
+this.ui.elements.securityStorage.title = storageAvailable ? 'Local Storage Available' : 'Local Storage Not Available';
+}
+}
+
+/**
+* Update statistics display
+*/
+updateStatistics() {
+// Example: Update files processed count
+const filesProcessed = localStorage.getItem('filesProcessed') || 0;
+if (this.ui.elements.filesProcessed) {
+this.ui.elements.filesProcessed.textContent = filesProcessed;
+}
+
+// Example: Update data encrypted
+const dataEncrypted = localStorage.getItem('dataEncrypted') || '0 MB';
+if (this.ui.elements.dataEncrypted) {
+this.ui.elements.dataEncrypted.textContent = dataEncrypted;
+}
+
+// Example: Update security level
+if (this.ui.elements.securityLevelValue) {
+this.ui.elements.securityLevelValue.textContent = this.state.encryption.settings.securityLevel;
+}
+}
+
+/**
+* Update security level display
+*/
+updateSecurityLevelDisplay() {
+const level = this.state.encryption.settings.securityLevel;
+let levelText = level;
+let levelColor = '#0d47a1';
+
+switch (level) {
+case 'BASIC':
+levelText = 'Basic';
+levelColor = '#4caf50';
+break;
+case 'MEDIUM':
+levelText = 'Medium';
+levelColor = '#ff9800';
+break;
+case 'HIGH':
+levelText = 'High';
+levelColor = '#ff5722';
+break;
+case 'MILITARY':
+levelText = 'Military';
+levelColor = '#9c27b0';
+break;
+}
+
+if (this.ui.elements.securityLevelValue) {
+this.ui.elements.securityLevelValue.textContent = levelText;
+this.ui.elements.securityLevelValue.style.color = levelColor;
+}
+}
+
+// ============================================================================
+// UI HANDLERS
+// ============================================================================
+
+/**
+* Show file information
+*/
+showFileInformation(file, type) {
+const elements = type === 'encrypt' ? {
+name: document.getElementById('encryptFileName'),
+size: document.getElementById('encryptFileSize'),
+info: document.getElementById('encryptFileInfo')
+} : {
+name: document.getElementById('decryptFileName'),
+size: document.getElementById('decryptFileSize'),
+type: document.getElementById('decryptFileType'), // For decrypt only
+info: document.getElementById('decryptFileInfo')
+};
+
+if (elements.name) {
+elements.name.textContent = file.name;
+}
+if (elements.size) {
+elements.size.textContent = this.formatFileSize(file.size);
+}
+if (elements.type && type === 'decrypt') {
+elements.type.textContent = file.type || 'Unknown';
+}
+if (elements.info) {
+elements.info.style.display = 'flex';
+}
+}
+
+/**
+* Show file info panel
+*/
+showFileInfo(type) {
+const card = type === 'encrypt' ? this.ui.elements.encryptCard : this.ui.elements.decryptCard;
+if (card) {
+card.classList.add('file-selected');
+}
+}
+
+/**
+* Clear file selection
+*/
+clearFile(type) {
+if (type === 'encrypt') {
+this.state.encryption.file = null;
+if (this.ui.elements.fileInputEncrypt) {
+this.ui.elements.fileInputEncrypt.value = '';
+}
+if (this.ui.elements.encryptFileInfo) {
+this.ui.elements.encryptFileInfo.style.display = 'none';
+}
+} else if (type === 'decrypt') {
+this.state.decryption.file = null;
+if (this.ui.elements.fileInputDecrypt) {
+this.ui.elements.fileInputDecrypt.value = '';
+}
+if (this.ui.elements.decryptFileInfo) {
+this.ui.elements.decryptFileInfo.style.display = 'none';
+}
+}
+}
+
+/**
+* Format file size
+*/
+formatFileSize(bytes) {
+if (bytes === 0) return '0 Bytes';
+const k = 1024;
+const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+const i = Math.floor(Math.log(bytes) / Math.log(k));
+return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+* Show status message
+*/
+showStatus(type, key, message) {
+const types = {
+success: { element: this.ui.elements.successStatus, text: this.ui.elements.successText, icon: 'fa-check-circle' },
+error: { element: this.ui.elements.errorStatus, text: this.ui.elements.errorText, icon: 'fa-exclamation-circle' },
+warning: { element: this.ui.elements.warningStatus, text: this.ui.elements.warningText, icon: 'fa-exclamation-triangle' },
+info: { element: this.ui.elements.infoStatus, text: this.ui.elements.infoText, icon: 'fa-info-circle' }
+};
+
+const status = types[type];
+if (!status || !status.element) return;
+
+// Hide all statuses first
+Object.values(types).forEach(s => {
+if (s.element) s.element.style.display = 'none';
+});
+
+// Show the requested status
+const translatedMessage = this.t(key) || message;
+status.text.textContent = translatedMessage;
+status.element.style.display = 'flex';
+
+// Auto-hide after 5 seconds
+setTimeout(() => {
+status.element.style.display = 'none';
+}, 5000);
+
+// Log to console
+console[type === 'error' ? 'error' : type === 'warning' ? 'warn' : 'log'](`Status [${type.toUpperCase()}]:`, translatedMessage);
+}
+
+/**
+* Translation helper
+*/
+t(key) {
+// Use translation system if available
+if (this.components.translation) {
+return this.components.translation.get(key);
+}
+// Fallback to English
+return key;
+}
+
+// ============================================================================
+// ENCRYPTION & DECRYPTION LOGIC
+// ============================================================================
+
+/**
+* Handle encryption
+*/
+async handleEncrypt() {
+if (this.state.ui.isProcessing) {
+this.showStatus('warning', 'processing_warning', 'Already processing a file.');
+return;
+}
+
+const file = this.state.encryption.file;
+const password = this.state.encryption.password;
+const confirmPassword = this.state.encryption.confirmPassword;
+
+if (!file) {
+this.showStatus('error', 'no_file_error', 'Please select a file to encrypt.');
+return;
+}
+
+if (!password) {
+this.showStatus('error', 'no_password_error', 'Please enter a password.');
+return;
+}
+
+if (password !== confirmPassword) {
+this.showStatus('error', 'password_mismatch_error', 'Passwords do not match.');
+return;
+}
+
+this.state.ui.isProcessing = true;
+this.showStatus('info', 'processing_info', 'Starting encryption...');
+
+try {
+// Get crypto engine based on security level
+let cryptoEngine = this.components.crypto;
+if (this.state.encryption.settings.securityLevel === 'MILITARY' && this.components.militaryCrypto) {
+cryptoEngine = this.components.militaryCrypto;
+}
+
+if (!cryptoEngine) {
+throw new Error('No crypto engine available');
+}
+
+// Perform encryption
+const encryptedFile = await cryptoEngine.encrypt(file, password, this.state.encryption.settings);
+
+// Save file
+const downloadUrl = URL.createObjectURL(encryptedFile);
+const link = document.createElement('a');
+link.href = downloadUrl;
+link.download = file.name + '.cvault';
+link.click();
+URL.revokeObjectURL(downloadUrl);
+
+this.showStatus('success', 'encrypt_success', `File encrypted successfully: ${encryptedFile.name}`);
+this.updateStatistics();
+
+} catch (error) {
+console.error('Encryption failed:', error);
+this.showStatus('error', 'encrypt_error', `Encryption failed: ${error.message}`);
+} finally {
+this.state.ui.isProcessing = false;
+}
+}
+
+/**
+* Handle decryption
+*/
+async handleDecrypt() {
+if (this.state.ui.isProcessing) {
+this.showStatus('warning', 'processing_warning', 'Already processing a file.');
+return;
+}
+
+const file = this.state.decryption.file;
+const password = this.state.decryption.password;
+
+if (!file) {
+this.showStatus('error', 'no_file_error', 'Please select a file to decrypt.');
+return;
+}
+
+if (!password) {
+this.showStatus('error', 'no_password_error', 'Please enter the password.');
+return;
+}
+
+this.state.ui.isProcessing = true;
+this.showStatus('info', 'processing_info', 'Starting decryption...');
+
+try {
+// Perform decryption
+const decryptedFile = await this.components.crypto.decrypt(file, password, this.state.decryption.settings);
+
+// Save file
+const downloadUrl = URL.createObjectURL(decryptedFile);
+const link = document.createElement('a');
+link.href = downloadUrl;
+link.download = file.name.replace('.cvault', '').replace('.cvenc', '').replace('.cvmil', '');
+link.click();
+URL.revokeObjectURL(downloadUrl);
+
+this.showStatus('success', 'decrypt_success', `File decrypted successfully: ${decryptedFile.name}`);
+this.updateStatistics();
+
+} catch (error) {
+console.error('Decryption failed:', error);
+this.showStatus('error', 'decrypt_error', `Decryption failed: ${error.message}`);
+} finally {
+this.state.ui.isProcessing = false;
+}
+}
+
+// ============================================================================
+// EVENT LISTENERS
+// ============================================================================
+
+/**
+* Setup event listeners
+*/
+setupEventListeners() {
+// File inputs
+if (this.ui.elements.fileInputEncrypt) {
+this.ui.elements.fileInputEncrypt.addEventListener('change', (e) => {
+this.state.encryption.file = e.target.files[0];
+if (this.state.encryption.file) {
+this.showFileInformation(this.state.encryption.file, 'encrypt');
+this.showFileInfo('encrypt');
+}
+});
+}
+
+if (this.ui.elements.fileInputDecrypt) {
+this.ui.elements.fileInputDecrypt.addEventListener('change', (e) => {
+this.state.decryption.file = e.target.files[0];
+if (this.state.decryption.file) {
+this.showFileInformation(this.state.decryption.file, 'decrypt');
+this.showFileInfo('decrypt');
+}
+});
+}
+
+// Password inputs
+if (this.ui.elements.passwordEncrypt) {
+this.ui.elements.passwordEncrypt.addEventListener('input', (e) => {
+this.state.encryption.password = e.target.value;
+});
+}
+
+if (this.ui.elements.passwordConfirm) {
+this.ui.elements.passwordConfirm.addEventListener('input', (e) => {
+this.state.encryption.confirmPassword = e.target.value;
+});
+}
+
+if (this.ui.elements.passwordDecrypt) {
+this.ui.elements.passwordDecrypt.addEventListener('input', (e) => {
+this.state.decryption.password = e.target.value;
+});
+}
+
+// Action buttons
+if (this.ui.elements.encryptBtn) {
+this.ui.elements.encryptBtn.addEventListener('click', () => this.handleEncrypt());
+}
+
+if (this.ui.elements.decryptBtn) {
+this.ui.elements.decryptBtn.addEventListener('click', () => this.handleDecrypt());
+}
+
+// Auto-clear password
+if (this.ui.elements.autoClear && this.ui.elements.autoClear.checked) {
+['click', 'change'].forEach(eventType => {
+document.addEventListener(eventType, (e) => {
+if (e.target.matches('input[type="password"]')) {
+setTimeout(() => {
+e.target.value = '';
+}, 30000); // Clear after 30 seconds
+}
+});
+});
+}
+}
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
+
+/**
+* Get application statistics
+*/
+getStatistics() {
+return {
+filesProcessed: localStorage.getItem('filesProcessed') || 0,
+dataEncrypted: localStorage.getItem('dataEncrypted') || '0 MB',
+encryptionSpeed: localStorage.getItem('encryptionSpeed') || 'N/A',
+securityLevel: this.state.encryption.settings.securityLevel,
+browser: navigator.userAgent,
+memory: this.state.ui.memoryAvailable,
+cpuCores: this.state.ui.cpuCores
+};
+}
+
+/**
+* Export configuration
+*/
+exportConfig() {
+const config = {
+version: '4.3.0',
+state: this.state,
+timestamp: Date.now()
+};
+const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+const url = URL.createObjectURL(blob);
+const link = document.createElement('a');
+link.href = url;
+link.download = 'ciphervault-config.json';
+link.click();
+URL.revokeObjectURL(url);
+}
+
+/**
+* Import configuration
+*/
+importConfig(file) {
+const reader = new FileReader();
+reader.onload = (e) => {
+try {
+const config = JSON.parse(e.target.result);
+// Apply config (be careful with this)
+this.state = { ...this.state, ...config.state };
+this.applyInitialSettings();
+this.showStatus('info', 'config_imported', 'Configuration imported successfully.');
+} catch (error) {
+this.showStatus('error', 'config_import_error', `Failed to import configuration: ${error.message}`);
+}
+};
+reader.readAsText(file);
+}
 }
 
 // ============================================================================
 // GLOBAL INITIALIZATION
 // ============================================================================
 
-// التحقق مما إذا كان التطبيق قد تم تهيئته مسبقًا لمنع التكرار
-if (typeof window.CipherVaultApp !== 'undefined') {
-    console.warn('CipherVaultApp is already defined. Skipping re-initialization.');
-} else {
-    // إنشاء نسخة عالمية من التطبيق
-    const App = new CipherVaultApp();
+// Global instance
+let CipherVaultAppInstance = null;
 
-    // تهيئة عندما يكون DOM جاهزًا
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            App.init().catch(error => {
-                console.error('Failed to initialize app:', error);
-            });
-        });
-    } else {
-        App.init().catch(error => {
-            console.error('Failed to initialize app:', error);
-        });
-    }
-
-    // جعل التطبيق متاحًا عالميًا
-    window.CipherVaultApp = App;
-    window.App = App; // اختصار للوصول
-
-    // تنظيف عند إغلاق الصفحة
-    window.addEventListener('beforeunload', () => {
-        if (window.App && typeof window.App.cleanup === 'function') {
-            window.App.cleanup();
-        }
-    });
-
-    // التصدير لـ ES modules
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { CipherVaultApp, App };
-    }
+/**
+* Initialize the application
+*/
+async function initializeCipherVaultApp() {
+if (CipherVaultAppInstance) {
+console.warn('CipherVaultApp already initialized');
+return CipherVaultAppInstance;
 }
+
+try {
+// ⭐ التأكد من تحميل جميع المكونات المطلوبة
+await waitForCriticalScripts();
+
+CipherVaultAppInstance = new CipherVaultApp();
+await CipherVaultAppInstance.init();
+CipherVaultAppInstance.setupEventListeners();
+
+console.log('✅ CipherVault App fully initialized');
+
+// Dispatch initialization event
+window.dispatchEvent(new CustomEvent('ciphervault:initialized', {
+detail: { app: CipherVaultAppInstance, timestamp: Date.now() }
+}));
+
+return CipherVaultAppInstance;
+
+} catch (error) {
+console.error('❌ Failed to initialize CipherVault App:', error);
+// ⭐ إظهار رسالة خطأ للمستخدم
+showCriticalError(error);
+}
+}
+
+/**
+* ⭐ دالة للانتظار حتى تحميل الملفات الحرجة
+*/
+function waitForCriticalScripts() {
+return new Promise((resolve, reject) => {
+const maxWaitTime = 10000; // 10 seconds
+const checkInterval = 100; // 100ms
+let elapsedTime = 0;
+
+const check = () => {
+elapsedTime += checkInterval;
+// ⭐ التحقق من تعريف المكونات المطلوبة
+const criticalScriptsLoaded = [
+typeof CryptoEngine !== 'undefined',
+typeof TranslationManager !== 'undefined',
+typeof SecurityAudit !== 'undefined',
+// لا نتحقق من Three.js هنا لأنه غير حرج
+].every(loaded => loaded === true);
+
+if (criticalScriptsLoaded) {
+console.log('✅ Critical scripts are loaded');
+resolve();
+} else if (elapsedTime >= maxWaitTime) {
+console.error('❌ Timeout waiting for critical scripts to load');
+reject(new Error('Critical scripts failed to load within timeout period'));
+} else {
+setTimeout(check, checkInterval);
+}
+};
+
+check();
+});
+}
+
+/**
+* ⭐ دالة لعرض رسالة خطأ حرجة
+*/
+function showCriticalError(error) {
+const container = document.querySelector('.main-container') || document.body;
+const errorDiv = document.createElement('div');
+errorDiv.className = 'critical-error-display';
+errorDiv.style.cssText = `
+position: fixed;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+text-align: center;
+color: #ff4757;
+padding: 30px;
+background: rgba(5, 5, 16, 0.98);
+border-radius: 15px;
+border: 3px solid #ff4757;
+max-width: 500px;
+z-index: 10000;
+font-family: system-ui, -apple-system, sans-serif;
+box-shadow: 0 10px 30px rgba(255, 71, 87, 0.3);
+`;
+errorDiv.innerHTML = `
+<div style="margin-bottom: 20px; font-size: 50px;">❌</div>
+<h2 style="margin: 0 0 15px 0; color: #ff4757;">Critical Error</h2>
+<p style="margin: 0 0 20px 0; font-size: 16px; color: #e0e0e0;">
+${error.message || 'An unknown error occurred during initialization.'}
+</p>
+<p style="font-size: 14px; color: #aa6666; margin: 0;">
+Please refresh the page or contact support.
+</p>
+<button onclick="location.reload()" style="
+margin-top: 20px;
+padding: 10px 20px;
+background: #ff4757;
+color: white;
+border: none;
+border-radius: 5px;
+cursor: pointer;
+font-size: 16px;
+">
+Refresh Page
+</button>
+`;
+container.appendChild(errorDiv);
+}
+
+// ⭐ تهيئة التطبيق بعد تحميل DOM وانتظار قصير لضمان تحميل الملفات الأخرى
+if (typeof window !== 'undefined') {
+if (document.readyState === 'loading') {
+document.addEventListener('DOMContentLoaded', () => {
+setTimeout(() => {
+if (!window.CIPHERVAULT_INITIALIZED) {
+initializeCipherVaultApp();
+window.CIPHERVAULT_INITIALIZED = true;
+}
+}, 2500); // ⭐ زيادة الوقت قليلاً لضمان تحميل الملفات
+});
+} else {
+setTimeout(() => {
+if (!window.CIPHERVAULT_INITIALIZED) {
+initializeCipherVaultApp();
+window.CIPHERVAULT_INITIALIZED = true;
+}
+}, 2500); // ⭐ زيادة الوقت قليلاً لضمان تحميل الملفات
+}
+}
+
+// Export for ES modules
+if (typeof module !== 'undefined' && module.exports) {
+module.exports = { CipherVaultApp, initializeCipherVaultApp };
+}
+
+console.log('🔧 CipherVaultApp v4.3.0 main.js loaded - All fixes applied');
