@@ -997,8 +997,12 @@
     
     <!-- إزالة تحميل web-workers.js من هنا لأن crypto-worker.js يستخدم Workers -->
     <!-- main.js يتم تحميله في النهاية كمنفذ رئيسي -->
-    <script src=navigator.serviceWorker.register('./service-worker.js', {scope: './'})"></script>
-    
+    <script>
+     navigator.serviceWorker.register('./service-worker.js', {scope: './'})
+       .then(registration => console.log('SW registered'))
+       .catch(err => console.error('SW registration failed:', err));
+    </script>
+
     <!-- Service Worker Registration - معدل بشكل آمن مع إصلاح مسار service worker -->
     <script>
         // تسجيل Service Worker مع معالجة أخطاء محسنة
