@@ -997,14 +997,14 @@
     
     <!-- إزالة تحميل web-workers.js من هنا لأن crypto-worker.js يستخدم Workers -->
     <!-- main.js يتم تحميله في النهاية كمنفذ رئيسي -->
-    <script src="assets/js/main.js"></script>
+    <script src=navigator.serviceWorker.register('./service-worker.js', {scope: './'})"></script>
     
     <!-- Service Worker Registration - معدل بشكل آمن مع إصلاح مسار service worker -->
     <script>
         // تسجيل Service Worker مع معالجة أخطاء محسنة
         function registerServiceWorker() {
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('service-worker.js', {
+                navigator.serviceWorker.register('./service-worker.js', {
                     scope: './'
                 })
                 .then(function(registration) {
@@ -1094,7 +1094,7 @@
                     console.error('CipherVaultApp not defined. Loading main.js again...');
                     // محاولة تحميل main.js مرة أخرى في حالة الفشل
                     const script = document.createElement('script');
-                    script.src = 'assets/js/main.js';
+                    script.src = './assets/js/main.js';
                     script.onload = function() {
                         if (typeof window.CipherVaultApp !== 'undefined') {
                             window.CipherVaultApp.init().catch(err => {
