@@ -1,6 +1,19 @@
-/*! CipherVault 3D Secure Scene Manager - Enhanced & Fixed */
-/*! Version: 5.0.0 | Security Level: Maximum */
-/*! Cross-browser compatible | Memory Optimized | 10GB File Support */
+/*!
+ * CipherVault 3D Secure Scene Manager (ES6 Module Version)
+ * Version: 5.1.0 - Security Enhanced & ES6 Compatible
+ *
+ * This file manages the 3D scene using Three.js.
+ * It is now compatible with ES6 Modules and imports Three.js.
+ */
+
+// ⭐ استيراد Three.js من الملف المحدد
+import * as THREE from './three.module.js';
+
+// ⭐ استيراد مكونات Three.js الأخرى (يجب أن تكون متوفرة كـ ES6 Modules أيضًا)
+// نحتاج إلى ملفات وهمية (Wrappers) لجعل OrbitControls و PostProcessing تعمل
+import { OrbitControls } from './orbit-controls-wrapper.js';
+// import { EffectComposer, RenderPass, ShaderPass } from './postprocessing-wrapper.js'; // إذا كنت ستحتاجها
+
 // ============================================================================
 // THREE.JS SECURE SCENE CONFIGURATION - ENHANCED FOR SECURITY APPLICATIONS
 // ============================================================================
@@ -242,12 +255,14 @@ console.log('Missing Three.js classes auto-created:', missingClasses);
 return THREE;
 })();
 // ============================================================================
-// THREE.JS SECURE SCENE MANAGER - FIXED VERSION
+// THREE.JS SECURE SCENE MANAGER - FIXED VERSION (ES6 Compatible)
 // ============================================================================
-class ThreeSceneManager {
-constructor() {
-// Safe THREE reference
-this.THREE = SecureTHREE;
+
+// ⭐ تعديل لجعله كلاس قابل للتصدير
+export class ThreeSceneManager {
+constructor(threeLib) {
+// ⭐ استخدام THREE من المعلمة
+this.THREE = threeLib || SecureTHREE;
 // Three.js components
 this.scene = null;
 this.camera = null;
@@ -298,10 +313,10 @@ this.init();
 * Initialize Three.js scene with enhanced error handling
 */
 init() {
-console.log('🚀 Initializing Secure Three.js Scene Manager...');
+console.log('🚀 Initializing Secure Three.js Scene Manager (ES6 Module)...');
 try {
 // Check if Three.js is available
-if (typeof SecureTHREE === 'undefined' || SecureTHREE.REVISION === 'compatibility-layer') {
+if (typeof this.THREE === 'undefined' || this.THREE.REVISION === 'compatibility-layer') {
 console.warn('Three.js not properly loaded. Using minimal mode.');
 this.createCanvasFallback();
 return;
@@ -344,18 +359,18 @@ this.startPerformanceMonitoring();
 if (this.config.performance.autoCleanup) {
 this.startAutoCleanup();
 }
-console.log('✅ Three.js scene initialized successfully');
+console.log('✅ Three.js scene initialized successfully (ES6 Module)');
 console.log(`   - Particles: ${this.config.particles.count}`);
 console.log(`   - Cubes: ${this.config.cubes.count}`);
 console.log(`   - Effects: ${this.config.animation.bloomEffect ? 'Enabled' : 'Disabled'}`);
 // Dispatch initialization event
 this.dispatchEvent('threejs:initialized', {
 timestamp: Date.now(),
-version: '5.0.0',
+version: '5.1.0',
 capabilities: capabilities
 });
 } catch (error) {
-console.error('❌ Failed to initialize Three.js scene:', error);
+console.error('❌ Failed to initialize Three.js scene (ES6 Module):', error);
 this.errors.push(error);
 this.handleInitError(error);
 this.createCanvasFallback();
@@ -840,12 +855,12 @@ this.config.animation.bloomEffect = false;
 * Setup orbit controls with fallback - MODIFIED TO DISABLE INTERACTION WITH MOVEMENT/TOUCH
 */
 setupControls() {
-if (typeof this.THREE.OrbitControls === 'undefined') {
+if (typeof OrbitControls === 'undefined') { // ⭐ استخدام OrbitControls من الاستيراد
 console.warn('OrbitControls not available, using basic interaction');
 return;
 }
 try {
-this.controls = new this.THREE.OrbitControls(this.camera, this.renderer.domElement);
+this.controls = new OrbitControls(this.camera, this.renderer.domElement); // ⭐ استخدام OrbitControls من الاستيراد
 
 // ⭐ تعطيل التفاعل مع حركة الهاتف أو اللمس غير المرغوب فيه
 this.controls.enableDamping = true;
@@ -1699,7 +1714,7 @@ this.effects = {};
 * Handle initialization error
 */
 handleInitError(error) {
-console.error('❌ Three.js initialization error:', error);
+console.error('❌ Three.js initialization error (ES6 Module):', error);
 this.errors.push(error);
 const errorDisplay = this.createErrorDisplay(error);
 this.dispatchEvent('threejs:error', {
@@ -1712,7 +1727,7 @@ return errorDisplay;
 * Handle render error
 */
 handleRenderError(error) {
-console.error('🎨 Render error:', error);
+console.error('🎨 Render error (ES6 Module):', error);
 try {
 if (this.renderer) {
 this.renderer.forceContextLoss();
@@ -1721,7 +1736,7 @@ this.renderer.dispose();
 // Fall back to canvas
 this.createCanvasFallback();
 } catch (recoveryError) {
-console.error('🔄 Failed to recover from render error:', recoveryError);
+console.error('🔄 Failed to recover from render error (ES6 Module):', recoveryError);
 this.createCanvasFallback();
 }
 }
@@ -1819,7 +1834,7 @@ console.groupEnd();
 * Cleanup all resources - MODIFIED TO REMOVE DEVICE ORIENTATION LISTENER
 */
 cleanup() {
-console.log('🧹 Cleaning up Three.js scene...');
+console.log('🧹 Cleaning up Three.js scene (ES6 Module)...');
 // Stop animation
 this.pauseAnimation();
 // Clear intervals
@@ -1879,15 +1894,21 @@ this.camera = null;
 this.renderer = null;
 this.controls = null;
 this.composer = null;
-console.log('✅ Three.js scene cleanup complete');
+console.log('✅ Three.js scene cleanup complete (ES6 Module)');
 this.dispatchEvent('threejs:cleanup:complete');
 }
 }
+
+// ⭐ تصدير ThreeSceneManager
+// export { ThreeSceneManager };
+
 // ============================================================================
-// GLOBAL INITIALIZATION WITH ERROR HANDLING
+// GLOBAL INITIALIZATION WITH ERROR HANDLING (Maintained for compatibility)
 // ============================================================================
+
 // Global instance
 let ThreeScene = null;
+
 /**
 * Initialize Three.js scene with security optimizations
 */
@@ -1910,23 +1931,24 @@ console.warn('WebGL not supported. 3D visualization disabled.');
 return null;
 }
 // Create scene manager
-ThreeScene = new ThreeSceneManager();
-console.log('✅ Three.js scene initialized for CipherVault Security');
+ThreeScene = new ThreeSceneManager(THREE); // ⭐ تمرير THREE
+console.log('✅ Three.js scene initialized for CipherVault Security (ES6 Module)');
 // Dispatch initialization event
 if (typeof window !== 'undefined') {
 const event = new CustomEvent('threejs:initialized', {
-detail: { timestamp: Date.now(), version: '5.0.0' }
+detail: { timestamp: Date.now(), version: '5.1.0' }
 });
 window.dispatchEvent(event);
 }
 return ThreeScene;
 } catch (error) {
-console.error('❌ Failed to initialize Three.js scene:', error);
+console.error('❌ Failed to initialize Three.js scene (ES6 Module):', error);
 // Create fallback visualization
 createThreeJSFallback();
 return null;
 }
 }
+
 /**
 * Create Three.js fallback visualization
 */
@@ -1968,12 +1990,14 @@ style.textContent = `
 document.head.appendChild(style);
 console.log('🔄 Created Three.js fallback visualization');
 }
+
 /**
 * Get Three.js scene instance
 */
 function getThreeScene() {
 return ThreeScene;
 }
+
 /**
 * Cleanup Three.js scene
 */
@@ -1983,12 +2007,14 @@ ThreeScene.cleanup();
 ThreeScene = null;
 }
 }
+
 /**
 * Check if Three.js is available
 */
 function isThreeJSAvailable() {
 return typeof SecureTHREE !== 'undefined' && SecureTHREE.REVISION !== 'compatibility-layer';
 }
+
 // Global exposure with security
 if (typeof window !== 'undefined') {
 // Prevent multiple initializations
@@ -2018,6 +2044,7 @@ window.THREE_SCENE_INITIALIZED = true;
 }
 }
 }
+
 // Export for ES modules
 if (typeof module !== 'undefined' && module.exports) {
 module.exports = {
@@ -2029,4 +2056,5 @@ isThreeJSAvailable,
 THREE_SCENE_CONFIG
 };
 }
-console.log('🔧 ThreeSceneManager v5.0.0 loaded - All fixes applied');
+
+console.log('🔧 ThreeSceneManager v5.1.0 (ES6 Module) loaded - All fixes applied');
