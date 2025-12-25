@@ -111,7 +111,7 @@ display: block;
 <link rel="stylesheet" href="./assets/css/main.css">
 <link rel="stylesheet" href="./assets/css/style.css">
 <!-- Preload critical resources -->
-<link rel="preload" href="./assets/js/three.min.js" as="script">
+<link rel="preload" href="./assets/js/three.module.js" as="script">
 <link rel="preload" href="./assets/js/crypto-core.js" as="script">
 </head>
 <body>
@@ -931,29 +931,9 @@ Not Now
 </footer>
 </div>
 <!-- Scripts -->
-<!-- Three.js Core -->
-<script src="./assets/js/three.min.js"></script>
-<script src="./assets/js/OrbitControls.js"></script>
-<!-- Postprocessing -->
-<script src="./assets/js/EffectComposer.js"></script>
-<script src="./assets/js/RenderPass.js"></script>
-<script src="./assets/js/ShaderPass.js"></script>
-<!-- مكتبات إضافية -->
-<script src="https://cdn.jsdelivr.net/npm/pako@2.0.4/dist/pako.min.js"></script>
-<!-- Application Scripts -->
-<script src="./assets/js/config.js"></script>
-<script src="./assets/js/translations.js"></script>
-<script src="./assets/js/three-scene.js"></script>
-<script src="./assets/js/crypto-core.js"></script>
-<script src="./assets/js/crypto-military.js"></script>
-<script src="./assets/js/crypto-worker.js"></script>
-<script src="./assets/js/audit-log.js"></script>
-<script src="./assets/js/security-audit.js"></script>
-<script src="./assets/js/pwa-manager.js"></script>
-<script src="./assets/js/ui-manager.js"></script>
-<script src="./assets/js/file-processor.js"></script>
-<script src="./assets/js/recovery-system.js"></script>
-<!-- منع تفاعل الحركة واللمس -->
+<!-- ⭐ ES6 Module for Main App -->
+<script type="module" src="./assets/js/main.js"></script>
+<!-- ⭐ منع تفاعل الحركة واللمس -->
 <script>
 // منع تفاعل الحركة الجسدية
 window.addEventListener('deviceorientation', function(e) {
@@ -1003,74 +983,6 @@ console.log('Service workers are not supported.');
 }
 // التسجيل بعد تحميل الصفحة
 window.addEventListener('load', registerServiceWorker);
-</script>
-<!-- تهيئة متوافقة مع جميع المتصفحات -->
-<script>
-// تهيئة آمنة للتطبيق مع fallback UI
-function initializeApp() {
-// التحقق من دعم WebGL و Three.js
-const canvas = document.createElement('canvas');
-const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-if (!gl) {
-document.body.classList.add('fallback-mode');
-console.warn('WebGL not supported. Falling back to 2D UI.');
-const securityLevelElement = document.getElementById('securityLevelValue');
-if (securityLevelElement) {
-securityLevelElement.textContent = '2D MODE';
-}
-return;
-}
-
-// تحقق من تحميل Three.js
-if (typeof THREE === 'undefined') {
-console.error('Three.js failed to load. Falling back to 2D UI.');
-document.body.classList.add('fallback-mode');
-const securityLevelElement = document.getElementById('securityLevelValue');
-if (securityLevelElement) {
-securityLevelElement.textContent = '3D INIT FAILED';
-}
-return;
-} else {
-console.log('Three.js Version:', THREE.REVISION);
-}
-
-// تهيئة آمنة للتطبيق مع تأخير لإعطاء الوقت للمكتبات للتحميل
-setTimeout(() => {
-if (typeof window.CipherVaultApp !== 'undefined') {
-window.CipherVaultApp.init().catch(err => {
-console.error('App initialization failed:', err);
-const securityLevelElement = document.getElementById('securityLevelValue');
-if (securityLevelElement) {
-securityLevelElement.textContent = 'INIT FAILED';
-}
-// تسجيل الخطأ في حالة الفشل
-const errorDiv = document.getElementById('error-status');
-if (errorDiv) {
-errorDiv.style.display = 'block';
-document.getElementById('error-text').textContent =
-'Application failed to initialize. Please refresh the page.';
-}
-});
-} else {
-console.error('CipherVaultApp not defined. Loading main.js...');
-// محاولة تحميل main.js مرة أخرى في حالة الفشل
-const script = document.createElement('script');
-script.src = './assets/js/main.js';
-script.onload = function() {
-if (typeof window.CipherVaultApp !== 'undefined') {
-window.CipherVaultApp.init().catch(err => {
-console.error('App initialization failed after reload:', err);
-});
-}
-};
-document.head.appendChild(script);
-}
-}, 2000);
-}
-// الانتظار حتى تحميل جميع العناصر
-document.addEventListener('DOMContentLoaded', function() {
-setTimeout(initializeApp, 500);
-});
 </script>
 </body>
 </html>
