@@ -110,8 +110,9 @@ display: block;
 <!-- تصحيح مسارات CSS -->
 <link rel="stylesheet" href="./assets/css/main.css">
 <link rel="stylesheet" href="./assets/css/style.css">
-<!-- Preload critical resources -->
-<link rel="preload" href="./assets/js/three.module.js" as="script">
+<!-- ⭐ Preload Critical Resources (مُعدّل) -->
+<!-- ⛔ حذف Preload لـ three.module.js -->
+<!-- <link rel="preload" href="./assets/js/three.module.js" as="script"> -->
 <link rel="preload" href="./assets/js/crypto-core.js" as="script">
 </head>
 <body>
@@ -792,7 +793,6 @@ style="stroke-dashoffset: 402.124;"></circle>
 </div>
 </div>
 </div>
-</div>
 <!-- 3D Stats Panel -->
 <div class="stats-panel-3d">
 <div class="stat-card">
@@ -933,6 +933,9 @@ Not Now
 <!-- Scripts -->
 <!-- ⭐ PKO Compression Library (مُضاف) -->
 <script src="./assets/js/pako.min.js"></script>
+
+<!-- ⭐ Three.js Core (مُعدّل) -->
+<script src="./assets/js/three.module.js"></script>
 
 <!-- ⭐ ES6 Module for Main App -->
 <script type="module" src="./assets/js/main.js"></script>
