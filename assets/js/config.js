@@ -1,5 +1,5 @@
 /**
- * CipherVault 3D Pro - Configuration Fil
+ * CipherVault 3D Pro - Configuration File
  * Military Grade Encryption System
  * Version: 4.1.0
  */
