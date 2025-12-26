@@ -1,6 +1,6 @@
 /*!
  * CipherVault 3D Pro - Main Application File (ES6 Module Version)
- * Version: 4.4.0 - Enhanced & Fixed for ES6 Modules & r182 Compatibility
+ * Version: 4.4.0 - Enhanced & Fixed for ES6 Modules & r182 Compatibilit
  */
 
 // ⭐ استيراد Three.js كـ ES6 Module
