@@ -110,9 +110,6 @@ display: block;
 <!-- تصحيح مسارات CSS -->
 <link rel="stylesheet" href="./assets/css/main.css">
 <link rel="stylesheet" href="./assets/css/style.css">
-<!-- ⭐ Preload Critical Resources (مُعدّل) -->
-<!-- ⛔ حذف Preload لـ three.module.js -->
-<!-- <link rel="preload" href="./assets/js/three.module.js" as="script"> -->
 </head>
 <body>
 <!-- Three.js Canvas -->
@@ -945,6 +942,16 @@ window.addEventListener('deviceorientation', function(e) {
 e.preventDefault();
 }, { passive: false });
 
+// منع التمرير والتكبير في Safari
+document.addEventListener('touchmove', function(e) {
+if (!e.target.closest('.drop-area')) {
+e.preventDefault();
+}
+}, { passive: false });
+
+document.addEventListener('gesturestart', function(e) {
+e.preventDefault();
+});
 </script>
 <!-- Service Worker Registration -->
 <script>
