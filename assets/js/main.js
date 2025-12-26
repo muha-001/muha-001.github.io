@@ -4,7 +4,7 @@
  */
 
 // ⭐ استيراد ThreeSceneManager (الملف المُعدّل حديثًا)
-import { ThreeSceneManager } from './assets/js/three-scene.js';
+import { ThreeSceneManager } from './three-scene.js';
 
 // ⭐ (اختياري) استيراد مكونات من three.core.js إذا كنت ستحتاجها مباشرة
 // import { THREE, OrbitControls, EffectComposer, ... } from './assets/js/three.core.js';
