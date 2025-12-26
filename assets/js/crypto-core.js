@@ -1,5 +1,5 @@
 /**
- * CipherVault 3D Pro - Core Cryptography Engine
+ * CipherVault 3D Pro - Core Cryptography Engin
  * Military Grade Encryption System
  * Version: 4.1.0
  */
