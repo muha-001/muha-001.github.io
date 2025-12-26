@@ -4,7 +4,7 @@
  */
 
 // ⭐ استيراد ThreeSceneManager (الملف المُعدّل حديثًا)
-import { ThreeSceneManager } from './three-scene.js';
+import { ThreeSceneManager } from './assets/js/three-scene.js';
 
 // ⭐ (اختياري) استيراد مكونات من three.core.js إذا كنت ستحتاجها مباشرة
 // import { THREE, OrbitControls, EffectComposer, ... } from './assets/js/three.core.js';
@@ -847,7 +847,7 @@ cpuCores: this.state.ui.cpuCores
 */
 exportConfig() {
 const config = {
-version: '4.4.2',
+version: '4.4.1',
 state: this.state,
 timestamp: Date.now()
 };
